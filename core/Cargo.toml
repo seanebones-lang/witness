@@ -1,0 +1,23 @@
+[package]
+name = "witness-core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ed25519-dalek = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+sqlx = { workspace = true }
+async-graphql = { workspace = true }
+ipfs-api = { workspace = true }
+csv = { workspace = true }
+rand = { workspace = true }
+tokio = { workspace = true }

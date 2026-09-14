@@ -1,0 +1,9 @@
+/Users/nexteleven/witness/target/debug/deps/either-0f311e1a68673ffa.d: /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/lib.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/serde_untagged.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/serde_untagged_optional.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/iterator.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/into_either.rs
+
+/Users/nexteleven/witness/target/debug/deps/libeither-0f311e1a68673ffa.rmeta: /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/lib.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/serde_untagged.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/serde_untagged_optional.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/iterator.rs /Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/into_either.rs
+
+/Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/lib.rs:
+/Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/serde_untagged.rs:
+/Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/serde_untagged_optional.rs:
+/Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/iterator.rs:
+/Users/nexteleven/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/either-1.18.0/src/into_either.rs:

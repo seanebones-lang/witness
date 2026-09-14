@@ -1,0 +1,13 @@
+[package]
+name = "witness-ingestion"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+witness-core = { path = "../core" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+csv = "1.3"
