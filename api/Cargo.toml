@@ -17,3 +17,6 @@ tracing-subscriber = { workspace = true }
 async-graphql = { workspace = true }
 async-graphql-axum = { workspace = true }
 clap = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }

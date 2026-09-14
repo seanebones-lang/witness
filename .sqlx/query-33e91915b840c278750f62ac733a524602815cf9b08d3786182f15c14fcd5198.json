@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT inference_id, old_version, new_version, changed_fields, timestamp, editor FROM narrative_diffs WHERE inference_id = ? ORDER BY timestamp DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "inference_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "old_version",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "new_version",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "changed_fields",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "timestamp",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "editor",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "33e91915b840c278750f62ac733a524602815cf9b08d3786182f15c14fcd5198"
+}

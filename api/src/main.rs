@@ -1,14 +1,16 @@
 use witness_core::types::*;
 use witness_core::storage::Storage;
-use witness_core::Result;
-use async_graphql::{Context, Object, Schema, SimpleObject, ID, InputObject};
-use async_graphql_axum::GraphQL;
-use axum::{routing::get, Router, Extension};
+use witness_core::Result as CoreResult;
+use async_graphql::{Context, Object, Schema, SimpleObject, ID, InputObject, EmptySubscription};
+use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
+use axum::{routing::get, Router, Extension, extract::{Path, Query, State}};
+use axum::Json;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-pub type WitnessSchema = Schema<QueryRoot, MutationRoot, SubscriptionRoot>;
+pub type WitnessSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -156,8 +158,8 @@ impl QueryRoot {
             page_info: GQLPageInfo {
                 has_next_page: has_next,
                 has_previous_page: offset > 0,
-                start_cursor: nodes.first().map(|n| n.id.to_string()),
-                end_cursor: nodes.last().map(|n| n.id.to_string()),
+                start_cursor: nodes.first().map(|n: &GQLProvenanceNode| n.id.to_string()) as Option<String>,
+            end_cursor: nodes.last().map(|n: &GQLProvenanceNode| n.id.to_string()) as Option<String>,
             },
             total_count: total,
             nodes,
@@ -271,13 +273,13 @@ impl MutationRoot {
 
 pub struct SubscriptionRoot;
 
-#[Object]
-impl SubscriptionRoot {
-    async fn node_created(&self, ctx: &Context<'_>) -> async_graphql::Result<async_graphql::futures_util::stream::Stream<GQLProvenanceNode>> {
-        // Would implement with async-graphql subscriptions
-        Err(async_graphql::Error::new("Not implemented"))
-    }
-}
+// Subscription disabled - would implement with async-graphql subscriptions
+// #[async_graphql::Subscription]
+// impl SubscriptionRoot {
+//     async fn node_created(&self, _ctx: &Context<'_>) -> async_graphql::Result<async_graphql::futures_util::Stream<Result<GQLProvenanceNode, async_graphql::Error>>> {
+//         Err(async_graphql::Error::new("Not implemented"))
+//     }
+// }
 
 fn convert_filter(f: GQLQueryFilter) -> witness_core::types::QueryFilter {
     witness_core::types::QueryFilter {
@@ -311,23 +313,32 @@ impl From<witness_core::types::QueryFilter> for GQLQueryFilter {
     }
 }
 
-pub async fn run_server(database_url: &str, port: u16) -> Result<()> {
+pub async fn run_server(database_url: &str, port: u16) -> CoreResult<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("info,witness=debug"))
         .with(tracing_subscriber::fmt::layer().json())
         .init();
 
     let storage = Arc::new(Storage::new(database_url).await?);
-    let state = AppState { storage };
+    let state = Arc::new(AppState { storage });
 
-    let schema = Schema::build(QueryRoot, MutationRoot, SubscriptionRoot)
-        .data(state)
+    let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
+        .data(state.clone())
         .finish();
 
     let app = Router::new()
-        .route("/graphql", get(graphql_playground).post(graphql_handler))
+        .route("/graphql", get(graphql_playground))
         .route("/health", get(health_check))
-        .layer(Extension(schema));
+        // REST API endpoints
+        .route("/api/nodes", get(get_nodes))
+        .route("/api/domains", get(get_domains))
+        .route("/api/nodes/:id/children", get(get_children))
+        .route("/api/nodes/:id/falsifiers", get(get_falsifiers))
+        .route("/api/nodes/:id/diffs", get(get_diffs))
+        // Dashboard
+        .route("/", get(serve_dashboard))
+        .layer(Extension(schema))
+        .with_state(state);
 
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     tracing::info!("Witness API listening on http://0.0.0.0:{}", port);
@@ -349,4 +360,223 @@ async fn graphql_handler(
 
 async fn health_check() -> &'static str {
     "OK"
+}
+
+async fn serve_dashboard() -> axum::response::Html<String> {
+    let html = std::fs::read_to_string("dashboard/templates/index.html")
+        .unwrap_or_else(|_| "<h1>Dashboard not found</h1>".to_string());
+    axum::response::Html(html)
+}
+
+// REST API types
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NodeResponse {
+    pub id: String,
+    pub cid: String,
+    pub epistemic_type: String,
+    pub payload: serde_json::Value,
+    pub author: serde_json::Value,
+    pub timestamp: String,
+    pub parents: Vec<String>,
+    pub labels: Vec<String>,
+    pub signature: Option<serde_json::Value>,
+    pub domain: Option<String>,
+    pub source_uri: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NodesResponse {
+    pub nodes: Vec<NodeResponse>,
+    pub total_count: i64,
+    pub page: i64,
+    pub page_size: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DomainsResponse {
+    pub domains: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChildrenResponse {
+    pub children: Vec<NodeResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FalsifierResponse {
+    pub description: String,
+    pub measurement_type: String,
+    pub location: Option<String>,
+    pub timeframe: Option<String>,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FalsifiersResponse {
+    pub falsifiers: Vec<FalsifierResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiffResponse {
+    pub inference_id: String,
+    pub old_version: serde_json::Value,
+    pub new_version: serde_json::Value,
+    pub changed_fields: Vec<String>,
+    pub timestamp: String,
+    pub editor: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiffsResponse {
+    pub diffs: Vec<DiffResponse>,
+}
+
+// REST API handlers
+async fn get_nodes(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<axum::Json<NodesResponse>, axum::http::StatusCode> {
+    let node_type = params.get("type").map(|s| s.as_str()).unwrap_or("observed");
+    let limit = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(20);
+    let offset = params.get("offset").and_then(|s| s.parse().ok()).unwrap_or(0);
+    let page = offset / limit + 1;
+
+    let epistemic_type = match node_type {
+        "observed" => EpistemicType::Observed,
+        "inferred" => EpistemicType::Inferred,
+        "generated" => EpistemicType::Generated,
+        _ => EpistemicType::Observed,
+    };
+
+    let mut filter = witness_core::types::QueryFilter::default();
+    filter.epistemic_types = Some(vec![epistemic_type]);
+    
+    if let Some(domain) = params.get("domain") {
+        filter.domains = Some(vec![domain.clone()]);
+    }
+    if let Some(author) = params.get("author") {
+        filter.authors = Some(vec![author.clone()]);
+    }
+    if let Some(label) = params.get("label") {
+        filter.labels = Some(vec![label.clone()]);
+    }
+
+    let nodes = state.storage.query_nodes(&filter, limit, offset).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total = state.storage.count_nodes(&filter).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let node_responses: Vec<NodeResponse> = nodes.into_iter().map(|n| NodeResponse {
+        id: n.id.to_string(),
+        cid: n.cid.0,
+        epistemic_type: format!("{:?}", n.epistemic_type),
+        payload: n.payload,
+        author: serde_json::to_value(n.author).unwrap_or_default(),
+        timestamp: n.timestamp.to_rfc3339(),
+        parents: n.parents.iter().map(|p| p.to_string()).collect(),
+        labels: n.labels,
+        signature: n.signature.map(|s| serde_json::to_value(s).unwrap_or_default()),
+        domain: n.domain,
+        source_uri: n.source_uri,
+    }).collect();
+
+    Ok(Json(NodesResponse {
+        nodes: node_responses,
+        total_count: total,
+        page,
+        page_size: limit,
+    }))
+}
+
+async fn get_domains(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<DomainsResponse>, axum::http::StatusCode> {
+    // Get all unique domains from the database
+    let rows = sqlx::query!("SELECT DISTINCT domain FROM nodes WHERE domain IS NOT NULL")
+        .fetch_all(&*state.storage.pool)
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let domains: Vec<String> = rows.into_iter()
+        .filter_map(|r| r.domain)
+        .collect();
+
+    Ok(Json(DomainsResponse { domains }))
+}
+
+async fn get_children(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<ChildrenResponse>, axum::http::StatusCode> {
+    let uuid = uuid::Uuid::parse_str(&id).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
+    let children = state.storage.get_children(uuid).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let child_responses: Vec<NodeResponse> = children.into_iter().map(|n| NodeResponse {
+        id: n.id.to_string(),
+        cid: n.cid.0,
+        epistemic_type: format!("{:?}", n.epistemic_type),
+        payload: n.payload,
+        author: serde_json::to_value(n.author).unwrap_or_default(),
+        timestamp: n.timestamp.to_rfc3339(),
+        parents: n.parents.iter().map(|p| p.to_string()).collect(),
+        labels: n.labels,
+        signature: n.signature.map(|s| serde_json::to_value(s).unwrap_or_default()),
+        domain: n.domain,
+        source_uri: n.source_uri,
+    }).collect();
+
+    Ok(Json(ChildrenResponse { children: child_responses }))
+}
+
+async fn get_falsifiers(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<FalsifiersResponse>, axum::http::StatusCode> {
+    let uuid = uuid::Uuid::parse_str(&id).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
+    
+    let node = state.storage.get_node(uuid).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let falsifiers = if let Some(node) = node {
+        if let Some(inference) = node.payload.get("derivation") {
+            if let Some(falsifiers) = inference.get("falsifiers").and_then(|f| f.as_array()) {
+                falsifiers.iter().filter_map(|f| {
+                    Some(FalsifierResponse {
+                        description: f.get("description")?.as_str()?.to_string(),
+                        measurement_type: f.get("measurement_type")?.as_str()?.to_string(),
+                        location: f.get("location").and_then(|l| l.as_str()).map(|s| s.to_string()),
+                        timeframe: f.get("timeframe").and_then(|t| t.as_str()).map(|s| s.to_string()),
+                        status: f.get("status")?.as_str()?.to_string(),
+                    })
+                }).collect()
+            } else { Vec::new() }
+        } else { Vec::new() }
+    } else { Vec::new() };
+
+    Ok(Json(FalsifiersResponse { falsifiers }))
+}
+
+async fn get_diffs(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<DiffsResponse>, axum::http::StatusCode> {
+    let uuid = uuid::Uuid::parse_str(&id).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
+    let diffs = state.storage.get_diffs(uuid).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let diff_responses: Vec<DiffResponse> = diffs.into_iter().map(|d| DiffResponse {
+        inference_id: d.inference_id.to_string(),
+        old_version: serde_json::to_value(d.old_version).unwrap_or_default(),
+        new_version: serde_json::to_value(d.new_version).unwrap_or_default(),
+        changed_fields: d.changed_fields,
+        timestamp: d.timestamp.to_rfc3339(),
+        editor: serde_json::to_value(d.editor).unwrap_or_default().to_string(),
+    }).collect();
+
+    Ok(Json(DiffsResponse { diffs: diff_responses }))
+}
+
+// Main entry point
+#[tokio::main]
+async fn main() -> witness_core::Result<()> {
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./witness.db".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string()).parse().unwrap_or(8080);
+    
+    run_server(&database_url, port).await
 }

@@ -1,11 +1,12 @@
 use crate::types::*;
 use crate::Result;
-use sqlx::{SqlitePool, Row};
+use sqlx::{SqlitePool, Row, FromRow};
 use std::sync::Arc;
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
 
 pub struct Storage {
-    pool: Arc<SqlitePool>,
+    pub pool: Arc<SqlitePool>,
 }
 
 impl Storage {
@@ -21,6 +22,11 @@ impl Storage {
         let labels = serde_json::to_string(&node.labels)?;
         let signature = node.signature.as_ref().map(serde_json::to_string).transpose()?;
         let author = serde_json::to_string(&node.author)?;
+        
+        let id_str = node.id.to_string();
+        let cid_str = node.cid.0.clone();
+        let epistemic_type_str = format!("{:?}", node.epistemic_type).to_lowercase();
+        let timestamp_str = node.timestamp.to_rfc3339();
 
         sqlx::query!(
             r#"
@@ -38,12 +44,12 @@ impl Storage {
                 domain = excluded.domain,
                 source_uri = excluded.source_uri
             "#,
-            node.id.to_string(),
-            node.cid.0,
-            format!("{:?}", node.epistemic_type).to_lowercase(),
+            id_str,
+            cid_str,
+            epistemic_type_str,
             payload,
             author,
-            node.timestamp.to_rfc3339(),
+            timestamp_str,
             parents,
             labels,
             signature,
@@ -55,10 +61,12 @@ impl Storage {
 
         // Store edges for graph traversal
         for parent_id in &node.parents {
+            let from_str = parent_id.to_string();
+            let to_str = node.id.to_string();
             sqlx::query!(
                 "INSERT OR IGNORE INTO edges (from_id, to_id, edge_type) VALUES (?, ?, 'supports')",
-                parent_id.to_string(),
-                node.id.to_string()
+                from_str,
+                to_str
             )
             .execute(&*self.pool)
             .await?;
@@ -68,12 +76,12 @@ impl Storage {
     }
 
     pub async fn get_node(&self, id: Uuid) -> Result<Option<ProvenanceNode>> {
-        let row = sqlx::query!(
-            "SELECT id, cid, epistemic_type, payload, author, timestamp, parents, labels, signature, domain, source_uri FROM nodes WHERE id = ?",
-            id.to_string()
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
+        let id_str = id.to_string();
+        let query = "SELECT id, cid, epistemic_type, payload, author, timestamp, parents, labels, signature, domain, source_uri FROM nodes WHERE id = ?";
+        let mut q = sqlx::query(query);
+        q = q.bind(id_str);
+
+        let row = q.fetch_optional(&*self.pool).await?;
 
         Ok(row.map(|r| self.row_to_node(r)))
     }
@@ -163,15 +171,15 @@ impl Storage {
     }
 
     pub async fn get_children(&self, parent_id: Uuid) -> Result<Vec<ProvenanceNode>> {
-        let rows = sqlx::query!(
-            "SELECT n.id, n.cid, n.epistemic_type, n.payload, n.author, n.timestamp, n.parents, n.labels, n.signature, n.domain, n.source_uri
+        let parent_str = parent_id.to_string();
+        let query = "SELECT n.id, n.cid, n.epistemic_type, n.payload, n.author, n.timestamp, n.parents, n.labels, n.signature, n.domain, n.source_uri
              FROM nodes n
              JOIN edges e ON n.id = e.to_id
-             WHERE e.from_id = ? AND e.edge_type = 'supports'",
-            parent_id.to_string()
-        )
-        .fetch_all(&*self.pool)
-        .await?;
+             WHERE e.from_id = ? AND e.edge_type = 'supports'";
+        let mut q = sqlx::query(query);
+        q = q.bind(parent_str);
+
+        let rows = q.fetch_all(&*self.pool).await?;
 
         Ok(rows.into_iter().map(|r| self.row_to_node(r)).collect())
     }
@@ -196,17 +204,20 @@ impl Storage {
         let new_version = serde_json::to_string(&diff.new_version)?;
         let changed_fields = serde_json::to_string(&diff.changed_fields)?;
         let editor = serde_json::to_string(&diff.editor)?;
+        
+        let inference_id_str = diff.inference_id.to_string();
+        let timestamp_str = diff.timestamp.to_rfc3339();
 
         sqlx::query!(
             r#"
             INSERT INTO narrative_diffs (inference_id, old_version, new_version, changed_fields, timestamp, editor)
             VALUES (?, ?, ?, ?, ?, ?)
             "#,
-            diff.inference_id.to_string(),
+            inference_id_str,
             old_version,
             new_version,
             changed_fields,
-            diff.timestamp.to_rfc3339(),
+            timestamp_str,
             editor
         )
         .execute(&*self.pool)
@@ -216,9 +227,10 @@ impl Storage {
     }
 
     pub async fn get_diffs(&self, inference_id: Uuid) -> Result<Vec<NarrativeDiff>> {
+        let inference_str = inference_id.to_string();
         let rows = sqlx::query!(
             "SELECT inference_id, old_version, new_version, changed_fields, timestamp, editor FROM narrative_diffs WHERE inference_id = ? ORDER BY timestamp DESC",
-            inference_id.to_string()
+            inference_str
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -229,7 +241,7 @@ impl Storage {
                 old_version: serde_json::from_str(&r.old_version).unwrap(),
                 new_version: serde_json::from_str(&r.new_version).unwrap(),
                 changed_fields: serde_json::from_str(&r.changed_fields).unwrap(),
-                timestamp: r.timestamp,
+                timestamp: DateTime::parse_from_rfc3339(&r.timestamp).unwrap().with_timezone(&Utc),
                 editor: serde_json::from_str(&r.editor).unwrap(),
             }
         }).collect())
@@ -247,7 +259,7 @@ impl Storage {
             },
             payload: serde_json::from_str(&row.get::<String, _>("payload")).unwrap(),
             author: serde_json::from_str(&row.get::<String, _>("author")).unwrap(),
-            timestamp: chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("timestamp")).unwrap().with_timezone(&chrono::Utc),
+            timestamp: DateTime::parse_from_rfc3339(&row.get::<String, _>("timestamp")).unwrap().with_timezone(&Utc),
             parents: serde_json::from_str(&row.get::<String, _>("parents")).unwrap(),
             labels: serde_json::from_str(&row.get::<String, _>("labels")).unwrap(),
             signature: row.get::<Option<String>, _>("signature").and_then(|s| serde_json::from_str(&s).ok()),

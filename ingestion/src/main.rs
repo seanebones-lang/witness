@@ -87,7 +87,7 @@ async fn main() -> Result<()> {
         None
     };
 
-    let service = IngestionService::new(storage.clone());
+    let mut service = IngestionService::new(storage.clone());
     if let Some(kp) = keypair.clone() {
         service = service.with_keypair(kp);
     }

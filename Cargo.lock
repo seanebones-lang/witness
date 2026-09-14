@@ -3867,14 +3867,17 @@ dependencies = [
  "async-graphql",
  "async-graphql-axum",
  "axum 0.7.9",
+ "chrono",
  "clap",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
  "tower 0.4.13",
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "uuid",
  "witness-core",
 ]
 
@@ -3903,11 +3906,13 @@ name = "witness-ingestion"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap",
  "csv",
  "serde",
  "serde_json",
  "tokio",
+ "uuid",
  "witness-core",
 ]
 

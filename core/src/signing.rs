@@ -2,6 +2,7 @@ use crate::types::*;
 use crate::Result;
 use ed25519_dalek::{SigningKey, VerifyingKey, Signer, Verifier};
 use rand::rngs::OsRng;
+use rand::RngCore;
 use sha2::Sha256;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
@@ -17,7 +18,9 @@ pub struct SigningKeypair {
 impl SigningKeypair {
     pub fn generate() -> Self {
         let mut csprng = OsRng;
-        let signing_key = SigningKey::generate(&mut csprng);
+        let mut secret_key = [0u8; 32];
+        csprng.fill_bytes(&mut secret_key);
+        let signing_key = SigningKey::from_bytes(&secret_key);
         let verifying_key = signing_key.verifying_key();
         Self { signing_key, verifying_key }
     }

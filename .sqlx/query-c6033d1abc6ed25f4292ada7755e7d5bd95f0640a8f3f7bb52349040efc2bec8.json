@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO narrative_diffs (inference_id, old_version, new_version, changed_fields, timestamp, editor)\n            VALUES (?, ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "c6033d1abc6ed25f4292ada7755e7d5bd95f0640a8f3f7bb52349040efc2bec8"
+}
