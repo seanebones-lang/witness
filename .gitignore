@@ -28,3 +28,6 @@ Thumbs.db
 # Keys
 *.key
 *.pem
+# Python verification tools
+__pycache__/
+*.py[cod]

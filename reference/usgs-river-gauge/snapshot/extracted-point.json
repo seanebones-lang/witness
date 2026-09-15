@@ -1,0 +1,46 @@
+{
+  "claims_and_limits": {
+    "approval_interpretation": "The source response defines qualifier A as approved for publication. This is preserved as a source-declared state; it is not a Witness approval, accuracy finding, or endorsement.",
+    "measurement_profile_status": "fails-draft-profile",
+    "reason": "The current Witness prototype lacks a ratified instrument profile, authoritative exact-decimal carrier, complete retrieval/custody semantics, and verified datum/calibration interpretation."
+  },
+  "dataset_status": "curated-demo",
+  "input": {
+    "path": "response.json",
+    "sha256": "62760c301b71dbd51ede3c84af6672641a98a02267a9823950ee46eb376c8f69"
+  },
+  "not_a_conforming_observation": true,
+  "schema": "witness-source-extraction/0.1",
+  "source_fields": {
+    "geospatial_srs": "EPSG:4326",
+    "latitude": "36.86433333",
+    "longitude": "-111.58787222",
+    "no_data_value": "-999999.0",
+    "parameter_code": "00060",
+    "qualifier_definitions": {
+      "A": {
+        "description": "Approved for publication -- Processing and review completed.",
+        "network": "NWIS",
+        "vocabulary": "uv_rmk_cd"
+      }
+    },
+    "qualifiers": [
+      "A"
+    ],
+    "site_code": "09380000",
+    "site_name": "COLORADO RIVER AT LEES FERRY, AZ",
+    "source_datetime": "2024-07-01T00:00:00.000-07:00",
+    "source_declared_approval_state": "Approved for publication -- Processing and review completed.",
+    "unit_code": "ft3/s",
+    "value_exact_source_text": "12300",
+    "value_type": "Derived Value",
+    "variable_name": "Streamflow, ft&#179;/s"
+  },
+  "transformation": {
+    "operation": "Select the single time-series point whose dateTime exactly equals the requested timestamp; copy source fields without numeric conversion.",
+    "parameters": {
+      "timestamp": "2024-07-01T00:00:00.000-07:00"
+    },
+    "tool": "witness-usgs-extractor/0.1.0"
+  }
+}

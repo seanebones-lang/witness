@@ -181,6 +181,21 @@ invariants can change, and how to report harm or vulnerabilities.
   measurement profile rather than count as a conforming observation.
 - [ ] Obtain a green hosted CI run after the GitHub account billing lock is
   resolved.
+- [x] Prohibit person-concerning ingest during the prototype stage pending a
+  reviewed restriction and sealing protocol.
+- [ ] Propose an Article V amendment that permits minimized tombstones and
+  payload unavailability for harmful person-concerning records without
+  pretending the historical event never occurred.
+- [ ] Define first-class `Restriction`, `Redaction`, `Withdrawal`, and
+  `Tombstone` objects, including authority, basis, scope, review or expiry,
+  emergency state, and appeal.
+- [ ] Define CID-publication rules and restriction propagation for payloads,
+  edges, author mappings, source URIs, inferred claims, generated children,
+  exports, and cooperative replicas.
+- [ ] Define privacy states including `not-assessed`,
+  `no-personal-data-expected`, `personal-data-present`, `consent-documented`,
+  `consent-withdrawn`, `sealed`, and `unsafe-to-publish` without producing a
+  composite trust score.
 
 ## Phase 1 — Make the record internally trustworthy
 

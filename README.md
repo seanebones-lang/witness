@@ -266,6 +266,10 @@ Contributions and design decisions should reinforce these principles:
 - **Safety grows with consequence.** High-consequence use requires stronger
   validation, access controls, auditability, and independent review.
 
+## Reproducible reference story
+
+The first source-preserving demonstration is the [USGS river-gauge reference](reference/usgs-river-gauge/README.md). It commits exact response bytes, retrieval metadata, SHA-256 digests, a versioned extraction, and an independent verifier. The extracted point is deliberately marked as **not yet a conforming observation** because the current measurement model cannot preserve all required source semantics.
+
 ## Current limitations
 
 The prototype currently lacks several controls required for public or
@@ -290,6 +294,18 @@ high-consequence deployment:
 
 Do not expose the current server directly to the public internet or use the
 repository as a production evidence authority.
+
+### Interim prohibition on person-concerning records
+
+Do not ingest records about identifiable people into the prototype. This
+includes names, faces, voices, precise private locations, health or school
+records, confidential-source material, identity allegations, testimony, and
+generated restatements of such material. The current append-only model has no
+ratified restriction, sealing, withdrawal, redaction, tombstone, or replica
+propagation protocol. A linked correction cannot undo publication of harmful
+bytes or an identifying digest. This restriction remains until the project
+adopts and reviews those controls. See the [privacy and human-rights project
+response](reviews/2026-09-15-privacy-human-rights-project-response.md).
 
 ## Contributing
 

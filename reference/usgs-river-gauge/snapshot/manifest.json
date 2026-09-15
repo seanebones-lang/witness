@@ -1,0 +1,45 @@
+{
+  "artifacts": {
+    "extracted-point.json": {
+      "bytes": 1885,
+      "sha256": "74433bf0bc5941a93136cb562ee6d1a114b37375efde0e0dfe620912483474f1"
+    },
+    "response-headers.json": {
+      "bytes": 459,
+      "sha256": "263eaae72fce310751396dbe2dea3d204f04bc08288891fa77293465b29650e7"
+    },
+    "response.json": {
+      "bytes": 17886,
+      "sha256": "62760c301b71dbd51ede3c84af6672641a98a02267a9823950ee46eb376c8f69"
+    }
+  },
+  "claims_and_limits": {
+    "retrieval_does_not_prove": "USGS authorship of every field, measurement accuracy, station identity, calibration, completeness, or Witness conformance.",
+    "retrieval_proves": "These bytes were returned by the recorded HTTPS request at the recorded time, subject to the limits of the local client and TLS trust store.",
+    "usgs_review_or_endorsement": false,
+    "usgs_signature_present": false
+  },
+  "dataset_status": "curated-demo",
+  "retrieval": {
+    "request_headers": {
+      "accept": "application/json",
+      "user-agent": "witness-usgs-retriever/0.1.0"
+    },
+    "tool": "witness-usgs-retriever/0.1.0"
+  },
+  "schema": "witness-source-artifact-manifest/0.1",
+  "source": {
+    "final_url": "https://nwis.waterservices.usgs.gov/nwis/iv/?format=json&sites=09380000&parameterCd=00060&startDT=2024-07-01&endDT=2024-07-02&siteStatus=all",
+    "http_status": 200,
+    "media_type": "application/json",
+    "parameter_code": "00060",
+    "publisher_claimed": "U.S. Geological Survey",
+    "request_url": "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=09380000&parameterCd=00060&startDT=2024-07-01&endDT=2024-07-02&siteStatus=all",
+    "requested_interval": {
+      "end": "2024-07-02",
+      "start": "2024-07-01"
+    },
+    "retrieved_at": "2026-09-15T17:32:43.283428Z",
+    "site_code": "09380000"
+  }
+}

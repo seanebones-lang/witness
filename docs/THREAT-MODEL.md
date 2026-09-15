@@ -41,7 +41,9 @@ deployment is conditional and unsupported.
 - Private signing keys and the accuracy of key-to-author claims.
 - Availability and comprehensibility of evidence and verification failures.
 - Sensitive or personal information that an operator may ingest despite the
-  prototype warning.
+  explicit prototype-stage prohibition on person-concerning records.
+- Restriction metadata, confidential premise edges, identifying content
+  digests, and generated or inferred copies that can perpetuate a sealed harm.
 - Release code, dependencies, CI results, and maintainer authority.
 
 ### Actors and capabilities
@@ -83,6 +85,7 @@ These are threat hypotheses for design and testing, not validated vulnerabilitie
 
 | Priority | Scenario and capability gain | Prerequisites | Impact | Existing controls | Required mitigation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
+| Critical | Person-concerning bytes, premise edges, or identifying digests are published into an append-only graph without effective recall | Importer or operator accepts identifiable material | Durable exposure, deanonymization, targeting, or repeated false accusation across exports and mirrors | Prototype documentation now prohibits person-concerning ingest | Restriction/redaction/withdrawal/tombstone objects, CID policy, child propagation, export conformance, access control, affected-person appeal | `README.md`; privacy review response; issue #3 |
 | Critical | Stolen signing key lets an attacker create records that validate under that key | Read access to key file or operator environment | Durable impersonation and misleading provenance | Keys are loaded locally; signatures detect later byte changes | OS-backed key storage, least privilege, rotation, revocation, compromise records | `ingestion/src/main.rs:137-157`; `core/src/signing.rs:17-45` |
 | High | Unauthenticated remote client submits fabricated observations | Operator exposes current GraphQL server | Database poisoning and misleading public output | Input parsing and record typing | Authentication, authorization, quotas, review state, deployment-safe defaults | `api/src/main.rs:297-317` |
 | High | Database or application mutation removes or rewrites history | Host/database access or mutation flaw | Undetected evidence loss or altered narrative | Duplicate IDs fail; node and edge writes share a transaction | External append-only log, signed checkpoints, backups, fork detection, correction records | `core/src/storage.rs:15-67` |

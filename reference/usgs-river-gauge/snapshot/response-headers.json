@@ -1,0 +1,14 @@
+{
+  "access-control-allow-origin": "*",
+  "cache-control": "max-age=900",
+  "connection": "close",
+  "content-security-policy": "frame-ancestors 'self'",
+  "content-type": "application/json",
+  "date": "Tue, 15 Sep 2026 17:32:42 GMT",
+  "expires": "Tue, 15 Sep 2026 17:47:43 GMT",
+  "server": "Apache",
+  "strict-transport-security": "max-age=31536000",
+  "transfer-encoding": "chunked",
+  "vary": "Accept-Encoding",
+  "x-ua-compatible": "IE=edge,chrome=1"
+}
