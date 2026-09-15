@@ -1,14 +1,19 @@
-use witness_core::types::*;
-use witness_core::storage::Storage;
-use witness_core::Result as CoreResult;
-use async_graphql::{Context, Object, Schema, SimpleObject, ID, InputObject, EmptySubscription};
-use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
-use axum::{routing::get, Router, Extension, extract::{Path, Query, State}};
+use async_graphql::{Context, EmptySubscription, ID, InputObject, Object, Schema, SimpleObject};
+use async_graphql_axum::GraphQL;
 use axum::Json;
+use axum::{
+    Router,
+    extract::{Path, Query, State},
+    routing::get,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use witness_core::Result as CoreResult;
+use witness_core::ingestion::IngestionService;
+use witness_core::storage::Storage;
+use witness_core::types::*;
 
 pub type WitnessSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 
@@ -23,12 +28,12 @@ pub struct GQLProvenanceNode {
     id: ID,
     cid: String,
     epistemic_type: EpistemicType,
-    payload: String,  // JSON string
-    author: String,   // JSON string
+    payload: String, // JSON string
+    author: String,  // JSON string
     timestamp: String,
     parents: Vec<ID>,
     labels: Vec<String>,
-    signature: Option<String>,  // JSON string
+    signature: Option<String>, // JSON string
     domain: Option<String>,
     source_uri: Option<String>,
 }
@@ -44,7 +49,9 @@ impl From<ProvenanceNode> for GQLProvenanceNode {
             timestamp: node.timestamp.to_rfc3339(),
             parents: node.parents.iter().map(|p| p.to_string().into()).collect(),
             labels: node.labels,
-            signature: node.signature.map(|s| serde_json::to_string(&s).unwrap_or_default()),
+            signature: node
+                .signature
+                .map(|s| serde_json::to_string(&s).unwrap_or_default()),
             domain: node.domain,
             source_uri: node.source_uri,
         }
@@ -126,7 +133,11 @@ pub struct QueryRoot;
 
 #[Object]
 impl QueryRoot {
-    async fn node(&self, ctx: &Context<'_>, id: ID) -> async_graphql::Result<Option<GQLProvenanceNode>> {
+    async fn node(
+        &self,
+        ctx: &Context<'_>,
+        id: ID,
+    ) -> async_graphql::Result<Option<GQLProvenanceNode>> {
         let state = ctx.data::<AppState>()?;
         let uuid = uuid::Uuid::parse_str(&id)?;
         if let Some(node) = state.storage.get_node(uuid).await? {
@@ -148,18 +159,27 @@ impl QueryRoot {
         let offset = after.as_ref().and_then(|s| s.parse().ok()).unwrap_or(0);
 
         let filter = filter.map(convert_filter).unwrap_or_default();
-        let nodes = state.storage.query_nodes(&filter, limit + 1, offset).await?;
+        let nodes = state
+            .storage
+            .query_nodes(&filter, limit + 1, offset)
+            .await?;
         let total = state.storage.count_nodes(&filter).await?;
 
         let has_next = nodes.len() > limit as usize;
-        let nodes: Vec<_> = nodes.into_iter().take(limit as usize).map(Into::into).collect();
+        let nodes: Vec<_> = nodes
+            .into_iter()
+            .take(limit as usize)
+            .map(Into::into)
+            .collect();
 
         Ok(GQLNodeConnection {
             page_info: GQLPageInfo {
                 has_next_page: has_next,
                 has_previous_page: offset > 0,
-                start_cursor: nodes.first().map(|n: &GQLProvenanceNode| n.id.to_string()) as Option<String>,
-            end_cursor: nodes.last().map(|n: &GQLProvenanceNode| n.id.to_string()) as Option<String>,
+                start_cursor: nodes.first().map(|n: &GQLProvenanceNode| n.id.to_string())
+                    as Option<String>,
+                end_cursor: nodes.last().map(|n: &GQLProvenanceNode| n.id.to_string())
+                    as Option<String>,
             },
             total_count: total,
             nodes,
@@ -202,43 +222,69 @@ impl QueryRoot {
         self.nodes(ctx, Some(f.into()), first, after).await
     }
 
-    async fn children(&self, ctx: &Context<'_>, parent_id: ID) -> async_graphql::Result<Vec<GQLProvenanceNode>> {
+    async fn children(
+        &self,
+        ctx: &Context<'_>,
+        parent_id: ID,
+    ) -> async_graphql::Result<Vec<GQLProvenanceNode>> {
         let state = ctx.data::<AppState>()?;
         let uuid = uuid::Uuid::parse_str(&parent_id)?;
         let children = state.storage.get_children(uuid).await?;
         Ok(children.into_iter().map(Into::into).collect())
     }
 
-    async fn parents(&self, ctx: &Context<'_>, child_id: ID) -> async_graphql::Result<Vec<GQLProvenanceNode>> {
+    async fn parents(
+        &self,
+        ctx: &Context<'_>,
+        child_id: ID,
+    ) -> async_graphql::Result<Vec<GQLProvenanceNode>> {
         let state = ctx.data::<AppState>()?;
         let uuid = uuid::Uuid::parse_str(&child_id)?;
         let parents = state.storage.get_parents(uuid).await?;
         Ok(parents.into_iter().map(Into::into).collect())
     }
 
-    async fn diffs(&self, ctx: &Context<'_>, inference_id: ID) -> async_graphql::Result<Vec<GQLNarrativeDiff>> {
+    async fn diffs(
+        &self,
+        ctx: &Context<'_>,
+        inference_id: ID,
+    ) -> async_graphql::Result<Vec<GQLNarrativeDiff>> {
         let state = ctx.data::<AppState>()?;
         let uuid = uuid::Uuid::parse_str(&inference_id)?;
         let diffs = state.storage.get_diffs(uuid).await?;
-        Ok(diffs.into_iter().map(|d| GQLNarrativeDiff {
-            inference_id: d.inference_id.to_string().into(),
-            old_version: serde_json::to_string(&d.old_version).unwrap_or_default(),
-            new_version: serde_json::to_string(&d.new_version).unwrap_or_default(),
-            changed_fields: d.changed_fields,
-            timestamp: d.timestamp.to_rfc3339(),
-            editor: serde_json::to_string(&d.editor).unwrap_or_default(),
-        }).collect())
+        Ok(diffs
+            .into_iter()
+            .map(|d| GQLNarrativeDiff {
+                inference_id: d.inference_id.to_string().into(),
+                old_version: serde_json::to_string(&d.old_version).unwrap_or_default(),
+                new_version: serde_json::to_string(&d.new_version).unwrap_or_default(),
+                changed_fields: d.changed_fields,
+                timestamp: d.timestamp.to_rfc3339(),
+                editor: serde_json::to_string(&d.editor).unwrap_or_default(),
+            })
+            .collect())
     }
 
-    async fn falsifiers(&self, ctx: &Context<'_>, inference_id: ID) -> async_graphql::Result<Vec<String>> {
+    async fn falsifiers(
+        &self,
+        ctx: &Context<'_>,
+        inference_id: ID,
+    ) -> async_graphql::Result<Vec<String>> {
         let state = ctx.data::<AppState>()?;
         let uuid = uuid::Uuid::parse_str(&inference_id)?;
-        if let Some(node) = state.storage.get_node(uuid).await? {
-            if let Some(inference) = node.payload.get("derivation") {
-                if let Some(falsifiers) = inference.get("falsifiers").and_then(|f| f.as_array()) {
-                    return Ok(falsifiers.iter().map(|f| f.get("description").and_then(|d| d.as_str()).unwrap_or("").to_string()).collect());
-                }
-            }
+        if let Some(node) = state.storage.get_node(uuid).await?
+            && let Some(inference) = node.payload.get("derivation")
+            && let Some(falsifiers) = inference.get("falsifiers").and_then(|f| f.as_array())
+        {
+            return Ok(falsifiers
+                .iter()
+                .map(|f| {
+                    f.get("description")
+                        .and_then(|d| d.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                })
+                .collect());
         }
         Ok(Vec::new())
     }
@@ -254,20 +300,101 @@ impl MutationRoot {
         input: GQLObservationInput,
     ) -> async_graphql::Result<GQLProvenanceNode> {
         let state = ctx.data::<AppState>()?;
-        // Simplified - would use ingestion service in real impl
-        Ok(GQLProvenanceNode {
-            id: uuid::Uuid::new_v4().to_string().into(),
-            cid: "pending".to_string(),
-            epistemic_type: EpistemicType::Observed,
-            payload: "{}".to_string(),
-            author: "{}".to_string(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            parents: vec![],
-            labels: input.labels.unwrap_or_default(),
-            signature: None,
-            domain: input.domain,
-            source_uri: None,
-        })
+        if input.value_numeric.is_none()
+            && input.value_text.is_none()
+            && input.categorical.is_none()
+        {
+            return Err("an observation must contain a numeric, text, or categorical value".into());
+        }
+
+        let measured_at = input
+            .measured_at
+            .parse::<chrono::DateTime<chrono::Utc>>()
+            .map_err(|_| async_graphql::Error::new("measuredAt must be an RFC 3339 timestamp"))?;
+        let author_type = match input.author_type.to_ascii_lowercase().as_str() {
+            "human" => AuthorType::Human,
+            "instrument" => AuthorType::Instrument,
+            "model" => AuthorType::Model,
+            "institution" => AuthorType::Institution,
+            "software" => AuthorType::Software,
+            _ => {
+                return Err(
+                    "authorType must be human, instrument, model, institution, or software".into(),
+                );
+            }
+        };
+        let uncertainty = match input.uncertainty_value {
+            Some(value) => {
+                let confidence_level = input.confidence_level.ok_or_else(|| {
+                    async_graphql::Error::new(
+                        "confidenceLevel is required when uncertaintyValue is supplied",
+                    )
+                })?;
+                if !(0.0..=1.0).contains(&confidence_level) {
+                    return Err("confidenceLevel must be between 0 and 1".into());
+                }
+                Some(Uncertainty {
+                    value,
+                    unit: input.uncertainty_unit.ok_or_else(|| {
+                        async_graphql::Error::new(
+                            "uncertaintyUnit is required when uncertaintyValue is supplied",
+                        )
+                    })?,
+                    confidence_level,
+                    method: input.uncertainty_method.ok_or_else(|| {
+                        async_graphql::Error::new(
+                            "uncertaintyMethod is required when uncertaintyValue is supplied",
+                        )
+                    })?,
+                })
+            }
+            None => None,
+        };
+
+        let measurement = Measurement {
+            quantity: input.quantity,
+            value: MeasuredValue {
+                numeric: input.value_numeric,
+                text: input.value_text,
+                unit: input.unit,
+                categorical: input.categorical,
+            },
+            location: Location {
+                latitude: input.latitude,
+                longitude: input.longitude,
+                station_id: input.station_id,
+                description: input.location_desc,
+                altitude_m: input.altitude_m,
+            },
+            measured_at,
+            instrument: InstrumentRef {
+                id: input.instrument_id,
+                name: input.instrument_name,
+                model: input.instrument_model,
+                calibration_ref: input.calibration_ref,
+            },
+            uncertainty,
+            chain_of_custody: None,
+        };
+        let author = Author {
+            id: input.author_id,
+            name: input.author_name,
+            author_type,
+            metadata: std::collections::HashMap::new(),
+        };
+        let service = IngestionService::new(state.storage.clone());
+        let node = service
+            .ingest_observation(
+                measurement,
+                author,
+                input.labels.unwrap_or_default(),
+                input.domain,
+                None,
+                None,
+            )
+            .await?;
+
+        Ok(node.into())
     }
 }
 
@@ -286,10 +413,13 @@ fn convert_filter(f: GQLQueryFilter) -> witness_core::types::QueryFilter {
         epistemic_types: f.epistemic_types,
         domains: f.domains,
         authors: f.authors,
-        date_range: f.date_from.zip(f.date_to).map(|(from, to)| witness_core::types::DateRange {
-            from: from.parse().unwrap_or_else(|_| chrono::Utc::now()),
-            to: to.parse().unwrap_or_else(|_| chrono::Utc::now()),
-        }),
+        date_range: f
+            .date_from
+            .zip(f.date_to)
+            .map(|(from, to)| witness_core::types::DateRange {
+                from: from.parse().unwrap_or_else(|_| chrono::Utc::now()),
+                to: to.parse().unwrap_or_else(|_| chrono::Utc::now()),
+            }),
         labels: f.labels,
         has_falsifiers: f.has_falsifiers,
         parent_of: f.parent_of.and_then(|id| uuid::Uuid::parse_str(&id).ok()),
@@ -323,21 +453,26 @@ pub async fn run_server(database_url: &str, port: u16) -> CoreResult<()> {
     let state = Arc::new(AppState { storage });
 
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
-        .data(state.clone())
+        .data(state.as_ref().clone())
         .finish();
 
     let app = Router::new()
-        .route("/graphql", get(graphql_playground))
+        .route(
+            "/graphql",
+            get(graphql_playground).post(axum::routing::on_service(
+                axum::routing::MethodFilter::POST,
+                GraphQL::new(schema.clone()),
+            )),
+        )
         .route("/health", get(health_check))
         // REST API endpoints
         .route("/api/nodes", get(get_nodes))
         .route("/api/domains", get(get_domains))
-        .route("/api/nodes/:id/children", get(get_children))
-        .route("/api/nodes/:id/falsifiers", get(get_falsifiers))
-        .route("/api/nodes/:id/diffs", get(get_diffs))
+        .route("/api/nodes/{id}/children", get(get_children))
+        .route("/api/nodes/{id}/falsifiers", get(get_falsifiers))
+        .route("/api/nodes/{id}/diffs", get(get_diffs))
         // Dashboard
         .route("/", get(serve_dashboard))
-        .layer(Extension(schema))
         .with_state(state);
 
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
@@ -348,14 +483,11 @@ pub async fn run_server(database_url: &str, port: u16) -> CoreResult<()> {
 }
 
 async fn graphql_playground() -> axum::response::Html<String> {
-    axum::response::Html(async_graphql::http::playground_source(async_graphql::http::GraphQLPlaygroundConfig::new("/graphql")))
-}
-
-async fn graphql_handler(
-    Extension(schema): Extension<WitnessSchema>,
-    req: async_graphql_axum::GraphQLRequest,
-) -> async_graphql_axum::GraphQLResponse {
-    schema.execute(req.into_inner()).await.into()
+    axum::response::Html(
+        async_graphql::http::GraphiQLSource::build()
+            .endpoint("/graphql")
+            .finish(),
+    )
 }
 
 async fn health_check() -> &'static str {
@@ -437,8 +569,14 @@ async fn get_nodes(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<axum::Json<NodesResponse>, axum::http::StatusCode> {
     let node_type = params.get("type").map(|s| s.as_str()).unwrap_or("observed");
-    let limit = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(20);
-    let offset = params.get("offset").and_then(|s| s.parse().ok()).unwrap_or(0);
+    let limit = params
+        .get("limit")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(20);
+    let offset = params
+        .get("offset")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
     let page = offset / limit + 1;
 
     let epistemic_type = match node_type {
@@ -448,9 +586,11 @@ async fn get_nodes(
         _ => EpistemicType::Observed,
     };
 
-    let mut filter = witness_core::types::QueryFilter::default();
-    filter.epistemic_types = Some(vec![epistemic_type]);
-    
+    let mut filter = witness_core::types::QueryFilter {
+        epistemic_types: Some(vec![epistemic_type]),
+        ..Default::default()
+    };
+
     if let Some(domain) = params.get("domain") {
         filter.domains = Some(vec![domain.clone()]);
     }
@@ -461,22 +601,35 @@ async fn get_nodes(
         filter.labels = Some(vec![label.clone()]);
     }
 
-    let nodes = state.storage.query_nodes(&filter, limit, offset).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    let total = state.storage.count_nodes(&filter).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let nodes = state
+        .storage
+        .query_nodes(&filter, limit, offset)
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total = state
+        .storage
+        .count_nodes(&filter)
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let node_responses: Vec<NodeResponse> = nodes.into_iter().map(|n| NodeResponse {
-        id: n.id.to_string(),
-        cid: n.cid.0,
-        epistemic_type: format!("{:?}", n.epistemic_type),
-        payload: n.payload,
-        author: serde_json::to_value(n.author).unwrap_or_default(),
-        timestamp: n.timestamp.to_rfc3339(),
-        parents: n.parents.iter().map(|p| p.to_string()).collect(),
-        labels: n.labels,
-        signature: n.signature.map(|s| serde_json::to_value(s).unwrap_or_default()),
-        domain: n.domain,
-        source_uri: n.source_uri,
-    }).collect();
+    let node_responses: Vec<NodeResponse> = nodes
+        .into_iter()
+        .map(|n| NodeResponse {
+            id: n.id.to_string(),
+            cid: n.cid.0,
+            epistemic_type: format!("{:?}", n.epistemic_type),
+            payload: n.payload,
+            author: serde_json::to_value(n.author).unwrap_or_default(),
+            timestamp: n.timestamp.to_rfc3339(),
+            parents: n.parents.iter().map(|p| p.to_string()).collect(),
+            labels: n.labels,
+            signature: n
+                .signature
+                .map(|s| serde_json::to_value(s).unwrap_or_default()),
+            domain: n.domain,
+            source_uri: n.source_uri,
+        })
+        .collect();
 
     Ok(Json(NodesResponse {
         nodes: node_responses,
@@ -494,10 +647,8 @@ async fn get_domains(
         .fetch_all(&*state.storage.pool)
         .await
         .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let domains: Vec<String> = rows.into_iter()
-        .filter_map(|r| r.domain)
-        .collect();
+
+    let domains: Vec<String> = rows.into_iter().filter_map(|r| r.domain).collect();
 
     Ok(Json(DomainsResponse { domains }))
 }
@@ -507,23 +658,34 @@ async fn get_children(
     Path(id): Path<String>,
 ) -> Result<Json<ChildrenResponse>, axum::http::StatusCode> {
     let uuid = uuid::Uuid::parse_str(&id).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
-    let children = state.storage.get_children(uuid).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let child_responses: Vec<NodeResponse> = children.into_iter().map(|n| NodeResponse {
-        id: n.id.to_string(),
-        cid: n.cid.0,
-        epistemic_type: format!("{:?}", n.epistemic_type),
-        payload: n.payload,
-        author: serde_json::to_value(n.author).unwrap_or_default(),
-        timestamp: n.timestamp.to_rfc3339(),
-        parents: n.parents.iter().map(|p| p.to_string()).collect(),
-        labels: n.labels,
-        signature: n.signature.map(|s| serde_json::to_value(s).unwrap_or_default()),
-        domain: n.domain,
-        source_uri: n.source_uri,
-    }).collect();
+    let children = state
+        .storage
+        .get_children(uuid)
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(ChildrenResponse { children: child_responses }))
+    let child_responses: Vec<NodeResponse> = children
+        .into_iter()
+        .map(|n| NodeResponse {
+            id: n.id.to_string(),
+            cid: n.cid.0,
+            epistemic_type: format!("{:?}", n.epistemic_type),
+            payload: n.payload,
+            author: serde_json::to_value(n.author).unwrap_or_default(),
+            timestamp: n.timestamp.to_rfc3339(),
+            parents: n.parents.iter().map(|p| p.to_string()).collect(),
+            labels: n.labels,
+            signature: n
+                .signature
+                .map(|s| serde_json::to_value(s).unwrap_or_default()),
+            domain: n.domain,
+            source_uri: n.source_uri,
+        })
+        .collect();
+
+    Ok(Json(ChildrenResponse {
+        children: child_responses,
+    }))
 }
 
 async fn get_falsifiers(
@@ -531,24 +693,43 @@ async fn get_falsifiers(
     Path(id): Path<String>,
 ) -> Result<Json<FalsifiersResponse>, axum::http::StatusCode> {
     let uuid = uuid::Uuid::parse_str(&id).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
-    
-    let node = state.storage.get_node(uuid).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
+    let node = state
+        .storage
+        .get_node(uuid)
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+
     let falsifiers = if let Some(node) = node {
         if let Some(inference) = node.payload.get("derivation") {
             if let Some(falsifiers) = inference.get("falsifiers").and_then(|f| f.as_array()) {
-                falsifiers.iter().filter_map(|f| {
-                    Some(FalsifierResponse {
-                        description: f.get("description")?.as_str()?.to_string(),
-                        measurement_type: f.get("measurement_type")?.as_str()?.to_string(),
-                        location: f.get("location").and_then(|l| l.as_str()).map(|s| s.to_string()),
-                        timeframe: f.get("timeframe").and_then(|t| t.as_str()).map(|s| s.to_string()),
-                        status: f.get("status")?.as_str()?.to_string(),
+                falsifiers
+                    .iter()
+                    .filter_map(|f| {
+                        Some(FalsifierResponse {
+                            description: f.get("description")?.as_str()?.to_string(),
+                            measurement_type: f.get("measurement_type")?.as_str()?.to_string(),
+                            location: f
+                                .get("location")
+                                .and_then(|l| l.as_str())
+                                .map(|s| s.to_string()),
+                            timeframe: f
+                                .get("timeframe")
+                                .and_then(|t| t.as_str())
+                                .map(|s| s.to_string()),
+                            status: f.get("status")?.as_str()?.to_string(),
+                        })
                     })
-                }).collect()
-            } else { Vec::new() }
-        } else { Vec::new() }
-    } else { Vec::new() };
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
 
     Ok(Json(FalsifiersResponse { falsifiers }))
 }
@@ -558,25 +739,40 @@ async fn get_diffs(
     Path(id): Path<String>,
 ) -> Result<Json<DiffsResponse>, axum::http::StatusCode> {
     let uuid = uuid::Uuid::parse_str(&id).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
-    let diffs = state.storage.get_diffs(uuid).await.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let diff_responses: Vec<DiffResponse> = diffs.into_iter().map(|d| DiffResponse {
-        inference_id: d.inference_id.to_string(),
-        old_version: serde_json::to_value(d.old_version).unwrap_or_default(),
-        new_version: serde_json::to_value(d.new_version).unwrap_or_default(),
-        changed_fields: d.changed_fields,
-        timestamp: d.timestamp.to_rfc3339(),
-        editor: serde_json::to_value(d.editor).unwrap_or_default().to_string(),
-    }).collect();
+    let diffs = state
+        .storage
+        .get_diffs(uuid)
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(DiffsResponse { diffs: diff_responses }))
+    let diff_responses: Vec<DiffResponse> = diffs
+        .into_iter()
+        .map(|d| DiffResponse {
+            inference_id: d.inference_id.to_string(),
+            old_version: serde_json::to_value(d.old_version).unwrap_or_default(),
+            new_version: serde_json::to_value(d.new_version).unwrap_or_default(),
+            changed_fields: d.changed_fields,
+            timestamp: d.timestamp.to_rfc3339(),
+            editor: serde_json::to_value(d.editor)
+                .unwrap_or_default()
+                .to_string(),
+        })
+        .collect();
+
+    Ok(Json(DiffsResponse {
+        diffs: diff_responses,
+    }))
 }
 
 // Main entry point
 #[tokio::main]
 async fn main() -> witness_core::Result<()> {
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./witness.db".to_string());
-    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string()).parse().unwrap_or(8080);
-    
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./witness.db".to_string());
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse()
+        .unwrap_or(8080);
+
     run_server(&database_url, port).await
 }

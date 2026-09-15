@@ -1,9 +1,9 @@
-use crate::types::*;
 use crate::Result;
-use sqlx::{SqlitePool, Row, FromRow};
+use crate::types::*;
+use chrono::{DateTime, Utc};
+use sqlx::{Row, SqlitePool};
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 pub struct Storage {
     pub pool: Arc<SqlitePool>,
@@ -13,16 +13,22 @@ impl Storage {
     pub async fn new(database_url: &str) -> Result<Self> {
         let pool = SqlitePool::connect(database_url).await?;
         sqlx::migrate!("./migrations").run(&pool).await?;
-        Ok(Self { pool: Arc::new(pool) })
+        Ok(Self {
+            pool: Arc::new(pool),
+        })
     }
 
     pub async fn store_node(&self, node: &ProvenanceNode) -> Result<()> {
         let payload = serde_json::to_string(&node.payload)?;
         let parents = serde_json::to_string(&node.parents)?;
         let labels = serde_json::to_string(&node.labels)?;
-        let signature = node.signature.as_ref().map(serde_json::to_string).transpose()?;
+        let signature = node
+            .signature
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         let author = serde_json::to_string(&node.author)?;
-        
+
         let id_str = node.id.to_string();
         let cid_str = node.cid.0.clone();
         let epistemic_type_str = format!("{:?}", node.epistemic_type).to_lowercase();
@@ -86,8 +92,15 @@ impl Storage {
         Ok(row.map(|r| self.row_to_node(r)))
     }
 
-    pub async fn query_nodes(&self, filter: &QueryFilter, limit: i64, offset: i64) -> Result<Vec<ProvenanceNode>> {
-        let mut query = String::from("SELECT id, cid, epistemic_type, payload, author, timestamp, parents, labels, signature, domain, source_uri FROM nodes WHERE 1=1");
+    pub async fn query_nodes(
+        &self,
+        filter: &QueryFilter,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<ProvenanceNode>> {
+        let mut query = String::from(
+            "SELECT id, cid, epistemic_type, payload, author, timestamp, parents, labels, signature, domain, source_uri FROM nodes WHERE 1=1",
+        );
         let mut args: Vec<String> = Vec::new();
 
         if let Some(types) = &filter.epistemic_types {
@@ -99,16 +112,16 @@ impl Storage {
         }
 
         if let Some(domains) = &filter.domains {
-            let placeholders = domains.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(&format!(" AND domain IN ({})", placeholders));
+            let _placeholders = domains.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            query.push_str(&format!(" AND domain IN ({})", _placeholders));
             for d in domains {
                 args.push(d.clone());
             }
         }
 
         if let Some(authors) = &filter.authors {
-            let placeholders = authors.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(&format!(" AND author LIKE '%' || ? || '%'"));
+            let _placeholders = authors.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            query.push_str(" AND author LIKE '%' || ? || '%'");
             for a in authors {
                 args.push(a.clone());
             }
@@ -121,8 +134,8 @@ impl Storage {
         }
 
         if let Some(labels) = &filter.labels {
-            let placeholders = labels.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(&format!(" AND labels LIKE '%' || ? || '%'"));
+            let _placeholders = labels.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            query.push_str(" AND labels LIKE '%' || ? || '%'");
             for l in labels {
                 args.push(l.clone());
             }
@@ -204,7 +217,7 @@ impl Storage {
         let new_version = serde_json::to_string(&diff.new_version)?;
         let changed_fields = serde_json::to_string(&diff.changed_fields)?;
         let editor = serde_json::to_string(&diff.editor)?;
-        
+
         let inference_id_str = diff.inference_id.to_string();
         let timestamp_str = diff.timestamp.to_rfc3339();
 
@@ -235,16 +248,19 @@ impl Storage {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|r| {
-            NarrativeDiff {
+        Ok(rows
+            .into_iter()
+            .map(|r| NarrativeDiff {
                 inference_id: Uuid::parse_str(&r.inference_id).unwrap(),
                 old_version: serde_json::from_str(&r.old_version).unwrap(),
                 new_version: serde_json::from_str(&r.new_version).unwrap(),
                 changed_fields: serde_json::from_str(&r.changed_fields).unwrap(),
-                timestamp: DateTime::parse_from_rfc3339(&r.timestamp).unwrap().with_timezone(&Utc),
+                timestamp: DateTime::parse_from_rfc3339(&r.timestamp)
+                    .unwrap()
+                    .with_timezone(&Utc),
                 editor: serde_json::from_str(&r.editor).unwrap(),
-            }
-        }).collect())
+            })
+            .collect())
     }
 
     fn row_to_node(&self, row: sqlx::sqlite::SqliteRow) -> ProvenanceNode {
@@ -259,10 +275,14 @@ impl Storage {
             },
             payload: serde_json::from_str(&row.get::<String, _>("payload")).unwrap(),
             author: serde_json::from_str(&row.get::<String, _>("author")).unwrap(),
-            timestamp: DateTime::parse_from_rfc3339(&row.get::<String, _>("timestamp")).unwrap().with_timezone(&Utc),
+            timestamp: DateTime::parse_from_rfc3339(&row.get::<String, _>("timestamp"))
+                .unwrap()
+                .with_timezone(&Utc),
             parents: serde_json::from_str(&row.get::<String, _>("parents")).unwrap(),
             labels: serde_json::from_str(&row.get::<String, _>("labels")).unwrap(),
-            signature: row.get::<Option<String>, _>("signature").and_then(|s| serde_json::from_str(&s).ok()),
+            signature: row
+                .get::<Option<String>, _>("signature")
+                .and_then(|s| serde_json::from_str(&s).ok()),
             domain: row.get("domain"),
             source_uri: row.get("source_uri"),
         }

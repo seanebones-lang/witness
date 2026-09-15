@@ -1,10 +1,10 @@
-use crate::types::*;
 use crate::Result;
-use crate::signing::{compute_cid, SigningKeypair, sign_node};
+use crate::signing::{SigningKeypair, compute_cid, sign_node};
 use crate::storage::Storage;
+use crate::types::*;
+use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 pub struct IngestionService {
     storage: Arc<Storage>,
@@ -13,7 +13,10 @@ pub struct IngestionService {
 
 impl IngestionService {
     pub fn new(storage: Arc<Storage>) -> Self {
-        Self { storage, default_keypair: None }
+        Self {
+            storage,
+            default_keypair: None,
+        }
     }
 
     pub fn with_keypair(mut self, keypair: SigningKeypair) -> Self {
@@ -70,9 +73,13 @@ impl IngestionService {
     }
 
     /// Batch ingest from JSONL file (one node per line)
-    pub async fn ingest_jsonl(&self, path: &str, keypair: Option<&SigningKeypair>) -> Result<Vec<ProvenanceNode>> {
-        use tokio::io::{AsyncBufReadExt, BufReader};
+    pub async fn ingest_jsonl(
+        &self,
+        path: &str,
+        keypair: Option<&SigningKeypair>,
+    ) -> Result<Vec<ProvenanceNode>> {
         use tokio::fs::File;
+        use tokio::io::{AsyncBufReadExt, BufReader};
 
         let file = File::open(path).await?;
         let reader = BufReader::new(file);
@@ -80,7 +87,9 @@ impl IngestionService {
         let mut nodes = Vec::new();
 
         while let Some(line) = lines.next_line().await? {
-            if line.trim().is_empty() { continue; }
+            if line.trim().is_empty() {
+                continue;
+            }
             let node: ProvenanceNode = serde_json::from_str(&line)?;
             let signed = self.sign_and_store(node, keypair).await?;
             nodes.push(signed);
@@ -110,7 +119,16 @@ impl IngestionService {
             let measurement = self.csv_record_to_measurement(&record, &column_mapping)?;
             let labels = vec!["csv-import".to_string()];
             let source_uri = Some(format!("file://{}", path));
-            let node = self.ingest_observation(measurement, author.clone(), labels, domain.clone(), source_uri, keypair).await?;
+            let node = self
+                .ingest_observation(
+                    measurement,
+                    author.clone(),
+                    labels,
+                    domain.clone(),
+                    source_uri,
+                    keypair,
+                )
+                .await?;
             nodes.push(node);
         }
 
@@ -125,7 +143,10 @@ impl IngestionService {
         domain: Option<String>,
         source_uri: Option<String>,
     ) -> Result<ProvenanceNode> {
-        let observation = Observation { node: ProvenanceNode::default(), measurement };
+        let observation = Observation {
+            node: ProvenanceNode::default(),
+            measurement,
+        };
         let payload = serde_json::to_value(&observation)?;
         let cid = compute_cid(&payload)?;
         let id = Uuid::new_v4();
@@ -153,7 +174,10 @@ impl IngestionService {
         domain: Option<String>,
         source_uri: Option<String>,
     ) -> Result<ProvenanceNode> {
-        let inference = Inference { node: ProvenanceNode::default(), derivation };
+        let inference = Inference {
+            node: ProvenanceNode::default(),
+            derivation,
+        };
         let payload = serde_json::to_value(&inference)?;
         let cid = compute_cid(&payload)?;
         let id = Uuid::new_v4();
@@ -201,7 +225,11 @@ impl IngestionService {
         })
     }
 
-    async fn sign_and_store(&self, mut node: ProvenanceNode, keypair: Option<&SigningKeypair>) -> Result<ProvenanceNode> {
+    async fn sign_and_store(
+        &self,
+        mut node: ProvenanceNode,
+        keypair: Option<&SigningKeypair>,
+    ) -> Result<ProvenanceNode> {
         if let Some(kp) = keypair {
             let sig = sign_node(&node, kp)?;
             node.signature = Some(sig);
@@ -210,32 +238,72 @@ impl IngestionService {
         Ok(node)
     }
 
-    fn csv_record_to_measurement(&self, record: &serde_json::Value, mapping: &CsvColumnMapping) -> Result<Measurement> {
+    fn csv_record_to_measurement(
+        &self,
+        record: &serde_json::Value,
+        mapping: &CsvColumnMapping,
+    ) -> Result<Measurement> {
         let get = |key: &str| record.get(key).and_then(|v| v.as_str()).unwrap_or("");
 
         Ok(Measurement {
             quantity: get(&mapping.quantity).to_string(),
             value: MeasuredValue {
                 numeric: get(&mapping.value_numeric).parse().ok(),
-                text: if mapping.value_text.is_empty() { None } else { Some(get(&mapping.value_text).to_string()) },
-                unit: if mapping.unit.is_empty() { None } else { Some(get(&mapping.unit).to_string()) },
-                categorical: if mapping.categorical.is_empty() { None } else { Some(get(&mapping.categorical).to_string()) },
+                text: if mapping.value_text.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.value_text).to_string())
+                },
+                unit: if mapping.unit.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.unit).to_string())
+                },
+                categorical: if mapping.categorical.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.categorical).to_string())
+                },
             },
             location: Location {
                 latitude: get(&mapping.latitude).parse().ok(),
                 longitude: get(&mapping.longitude).parse().ok(),
-                station_id: if mapping.station_id.is_empty() { None } else { Some(get(&mapping.station_id).to_string()) },
-                description: if mapping.location_desc.is_empty() { None } else { Some(get(&mapping.location_desc).to_string()) },
+                station_id: if mapping.station_id.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.station_id).to_string())
+                },
+                description: if mapping.location_desc.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.location_desc).to_string())
+                },
                 altitude_m: get(&mapping.altitude).parse().ok(),
             },
-            measured_at: get(&mapping.timestamp).parse().unwrap_or_else(|_| Utc::now()),
+            measured_at: get(&mapping.timestamp)
+                .parse()
+                .unwrap_or_else(|_| Utc::now()),
             instrument: InstrumentRef {
                 id: get(&mapping.instrument_id).to_string(),
-                name: if mapping.instrument_name.is_empty() { None } else { Some(get(&mapping.instrument_name).to_string()) },
-                model: if mapping.instrument_model.is_empty() { None } else { Some(get(&mapping.instrument_model).to_string()) },
-                calibration_ref: if mapping.calibration_ref.is_empty() { None } else { Some(get(&mapping.calibration_ref).to_string()) },
+                name: if mapping.instrument_name.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.instrument_name).to_string())
+                },
+                model: if mapping.instrument_model.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.instrument_model).to_string())
+                },
+                calibration_ref: if mapping.calibration_ref.is_empty() {
+                    None
+                } else {
+                    Some(get(&mapping.calibration_ref).to_string())
+                },
             },
-            uncertainty: if mapping.uncertainty_value.is_empty() { None } else {
+            uncertainty: if mapping.uncertainty_value.is_empty() {
+                None
+            } else {
                 Some(Uncertainty {
                     value: get(&mapping.uncertainty_value).parse().unwrap_or(0.0),
                     unit: get(&mapping.uncertainty_unit).to_string(),

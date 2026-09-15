@@ -1,12 +1,11 @@
-use crate::types::*;
 use crate::Result;
-use ed25519_dalek::{SigningKey, VerifyingKey, Signer, Verifier};
-use rand::rngs::OsRng;
-use rand::RngCore;
-use sha2::Sha256;
-use uuid::Uuid;
+use crate::types::*;
 use chrono::{DateTime, Utc};
+use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
+use rand::RngCore;
+use rand::rngs::OsRng;
 use serde::Serialize;
+use uuid::Uuid;
 
 /// Keypair for signing provenance nodes
 #[derive(Debug, Clone)]
@@ -22,13 +21,19 @@ impl SigningKeypair {
         csprng.fill_bytes(&mut secret_key);
         let signing_key = SigningKey::from_bytes(&secret_key);
         let verifying_key = signing_key.verifying_key();
-        Self { signing_key, verifying_key }
+        Self {
+            signing_key,
+            verifying_key,
+        }
     }
 
     pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self> {
         let signing_key = SigningKey::from_bytes(bytes);
         let verifying_key = signing_key.verifying_key();
-        Ok(Self { signing_key, verifying_key })
+        Ok(Self {
+            signing_key,
+            verifying_key,
+        })
     }
 
     pub fn public_key_hex(&self) -> String {
@@ -58,7 +63,9 @@ pub fn verify_node(node: &ProvenanceNode) -> Result<bool> {
     };
 
     if sig.algorithm != "ed25519" {
-        return Err(crate::WitnessError::Crypto("Unsupported algorithm".to_string()));
+        return Err(crate::WitnessError::Crypto(
+            "Unsupported algorithm".to_string(),
+        ));
     }
 
     let canonical = canonicalize_node(node)?;
@@ -67,12 +74,18 @@ pub fn verify_node(node: &ProvenanceNode) -> Result<bool> {
     let signature_bytes = hex::decode(&sig.signature)
         .map_err(|e| crate::WitnessError::Crypto(format!("Invalid signature hex: {}", e)))?;
 
-    let verifying_key = VerifyingKey::from_bytes(&public_key_bytes.try_into()
-        .map_err(|_| crate::WitnessError::Crypto("Invalid public key length".to_string()))?)
-        .map_err(|e| crate::WitnessError::Crypto(format!("Invalid public key: {}", e)))?;
+    let verifying_key = VerifyingKey::from_bytes(
+        &public_key_bytes
+            .try_into()
+            .map_err(|_| crate::WitnessError::Crypto("Invalid public key length".to_string()))?,
+    )
+    .map_err(|e| crate::WitnessError::Crypto(format!("Invalid public key: {}", e)))?;
 
-    let signature = ed25519_dalek::Signature::from_bytes(&signature_bytes.try_into()
-        .map_err(|_| crate::WitnessError::Crypto("Invalid signature length".to_string()))?);
+    let signature = ed25519_dalek::Signature::from_bytes(
+        &signature_bytes
+            .try_into()
+            .map_err(|_| crate::WitnessError::Crypto("Invalid signature length".to_string()))?,
+    );
 
     Ok(verifying_key.verify(&canonical, &signature).is_ok())
 }
@@ -121,4 +134,53 @@ pub fn compute_cid<T: Serialize>(value: &T) -> Result<CID> {
 pub fn verify_cid<T: Serialize>(value: &T, expected_cid: &CID) -> Result<bool> {
     let computed = compute_cid(value)?;
     Ok(computed == *expected_cid)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn node() -> ProvenanceNode {
+        let payload = serde_json::json!({"reading": 18.4, "unit": "degC"});
+        ProvenanceNode {
+            id: Uuid::new_v4(),
+            cid: compute_cid(&payload).unwrap(),
+            epistemic_type: EpistemicType::Observed,
+            payload,
+            author: Author {
+                id: "instrument:test".to_string(),
+                name: Some("Test instrument".to_string()),
+                author_type: AuthorType::Instrument,
+                metadata: HashMap::new(),
+            },
+            timestamp: Utc::now(),
+            parents: Vec::new(),
+            signature: None,
+            labels: vec!["test".to_string()],
+            domain: Some("climate".to_string()),
+            source_uri: None,
+        }
+    }
+
+    #[test]
+    fn signature_verifies_unchanged_node() {
+        let keypair = SigningKeypair::generate();
+        let mut node = node();
+        node.signature = Some(sign_node(&node, &keypair).unwrap());
+
+        assert!(verify_node(&node).unwrap());
+        assert!(verify_cid(&node.payload, &node.cid).unwrap());
+    }
+
+    #[test]
+    fn signature_rejects_tampered_payload() {
+        let keypair = SigningKeypair::generate();
+        let mut node = node();
+        node.signature = Some(sign_node(&node, &keypair).unwrap());
+        node.payload["reading"] = serde_json::json!(99.9);
+
+        assert!(!verify_node(&node).unwrap());
+        assert!(!verify_cid(&node.payload, &node.cid).unwrap());
+    }
 }
