@@ -216,6 +216,26 @@ invariants can change, and how to report harm or vulnerabilities.
 - [ ] Limit C2PA mappings to media assets for which C2PA is applicable, and use
   Verifiable Credentials only for attested identity claims when a real issuer
   exists.
+- [x] Limit journalism use during the prototype stage to already-public
+  artifacts and published corrections; prohibit reporter notebooks,
+  anonymous-source files, confidential premise maps, and unpublished material.
+- [ ] Separate artifact, retrieval, extraction, direct observation, testimony,
+  statement attribution, editorial inference, published correction, editor's
+  note, and generated assistance as explicit roles or profile concepts without
+  ranking human and instrument evidence on one prestige scale.
+- [ ] Represent confidential premises as intentionally present-but-not-in-graph
+  when disclosure would expose a source; require a non-identifying basis and
+  never treat the omitted premise as public evidence.
+- [ ] Define role-bound authority for extraction correction, story correction,
+  source revision, institutional retraction, independent contradiction,
+  dispute, and sealing instead of allowing any signing key to assert every act.
+- [ ] Define `current-for-use` independently from `history-for-accountability`;
+  APIs and interfaces must default safely so superseded or retracted material
+  is not silently reused as current.
+- [ ] Model source independence and common origin so parent count or repeated
+  publication cannot be presented as corroboration.
+- [ ] Make Generated newsroom material programmatically and visually distinct
+  from source artifacts, with accessible text labels that do not rely on color.
 
 ## Phase 1 — Make the record internally trustworthy
 

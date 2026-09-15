@@ -317,6 +317,17 @@ bytes or an identifying digest. This restriction remains until the project
 adopts and reviews those controls. See the [privacy and human-rights project
 response](reviews/2026-09-15-privacy-human-rights-project-response.md).
 
+### Interim journalism boundary
+
+Use the prototype, if at all, only as a sidecar for already-public artifacts
+and published corrections. Do not ingest reporter notebooks, unpublished
+reporting material, anonymous-source files, confidential premise maps, or
+not-for-attribution statements. The current model cannot yet distinguish an
+artifact, its retrieval, a reporter's extraction, testimony, editorial
+inference, correction, retraction, contradiction, dispute, and sealing with the
+role-bound authority and safe defaults newsroom accountability requires. See
+the [journalism project response](reviews/2026-09-15-journalism-public-records-project-response.md).
+
 ## Contributing
 
 Witness needs more than software contributions. Researchers, archivists,
