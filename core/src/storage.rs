@@ -111,9 +111,8 @@ impl Storage {
         }
 
         if let Some(authors) = &filter.authors {
-            let _placeholders = authors.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(" AND author LIKE '%' || ? || '%'");
             for a in authors {
+                query.push_str(" AND author LIKE '%' || ? || '%'");
                 args.push(a.clone());
             }
         }
@@ -125,9 +124,8 @@ impl Storage {
         }
 
         if let Some(labels) = &filter.labels {
-            let _placeholders = labels.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(" AND labels LIKE '%' || ? || '%'");
             for l in labels {
+                query.push_str(" AND labels LIKE '%' || ? || '%'");
                 args.push(l.clone());
             }
         }
@@ -162,6 +160,26 @@ impl Storage {
             query.push_str(&format!(" AND domain IN ({})", placeholders));
             for d in domains {
                 args.push(d.clone());
+            }
+        }
+
+        if let Some(authors) = &filter.authors {
+            for a in authors {
+                query.push_str(" AND author LIKE '%' || ? || '%'");
+                args.push(a.clone());
+            }
+        }
+
+        if let Some(range) = &filter.date_range {
+            query.push_str(" AND timestamp BETWEEN ? AND ?");
+            args.push(range.from.to_rfc3339());
+            args.push(range.to.to_rfc3339());
+        }
+
+        if let Some(labels) = &filter.labels {
+            for l in labels {
+                query.push_str(" AND labels LIKE '%' || ? || '%'");
+                args.push(l.clone());
             }
         }
 
@@ -366,6 +384,47 @@ mod tests {
 
         let result = storage.get_node(id).await;
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+
+        drop(storage);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn filtered_count_matches_filtered_query() {
+        let (storage, path) = test_storage().await;
+
+        for (author, labels) in [
+            ("US Geological Survey", r#"["demo-fixture","hydrology"]"#),
+            ("National Weather Service", r#"["demo-fixture","weather"]"#),
+        ] {
+            sqlx::query(
+                "INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels, domain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(Uuid::new_v4().to_string())
+            .bind("test-cid")
+            .bind("observed")
+            .bind("{}")
+            .bind(format!(r#"{{"id":"test","name":"{author}","author_type":"instrument","metadata":{{}}}}"#))
+            .bind(Utc::now().to_rfc3339())
+            .bind("[]")
+            .bind(labels)
+            .bind(if author == "US Geological Survey" { "hydrology" } else { "weather" })
+            .execute(&*storage.pool)
+            .await
+            .unwrap();
+        }
+
+        let filter = QueryFilter {
+            epistemic_types: Some(vec![EpistemicType::Observed]),
+            authors: Some(vec!["US Geological Survey".to_string()]),
+            labels: Some(vec!["demo-fixture".to_string()]),
+            ..Default::default()
+        };
+
+        let nodes = storage.query_nodes(&filter, 20, 0).await.unwrap();
+        let count = storage.count_nodes(&filter).await.unwrap();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(count, nodes.len() as i64);
 
         drop(storage);
         std::fs::remove_file(path).unwrap();
