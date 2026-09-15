@@ -69,6 +69,10 @@ dependency, or architectural rewrite. A strong proposal includes:
 - **Alternatives:** Other approaches considered.
 - **Verification:** Tests, fixtures, or review needed to demonstrate the result.
 - **Compatibility:** Effects on existing databases, APIs, signatures, or tools.
+- **Constitution:** Which epistemic invariant applies, and whether the proposal
+  preserves or changes it.
+- **Power:** Who gains authority, discretion, access, or the ability to remove
+  or reinterpret records.
 
 For domain-specific work, include a reviewer with relevant experience whenever
 possible. Code review alone cannot validate a medical, legal, scientific,
@@ -160,13 +164,18 @@ Reviewers should ask:
 
 - Does the change preserve the distinction among observed, inferred, and
   generated?
+- Does it preserve unknowns and distinguish missing evidence from evidence of
+  absence?
 - Could the interface make a weak signal appear stronger than it is?
+- Does it compress distinct verification dimensions into a misleading score?
 - Can malformed or adversarial input cause silent acceptance, corruption, or a
   crash?
 - Does the change preserve history and make correction visible?
 - Does it expose people or sensitive information to new risk?
 - Is the behavior testable and documented?
 - Can another implementation reproduce the result?
+- Does it concentrate protocol, identity, moderation, or infrastructure power
+  without making that concentration visible and accountable?
 
 Maintainers may ask for security, privacy, accessibility, domain, or community
 review in addition to code review.

@@ -232,6 +232,13 @@ Contributions and design decisions should reinforce these principles:
   inspectable without proprietary software or a model intermediary.
 - **No domain gets automatic authority.** Medical, legal, scientific,
   journalistic, and community knowledge each require domain-specific governance.
+- **Verification has dimensions.** Integrity, identity, custody, calibration,
+  replication, availability, and privacy remain separate; Witness does not
+  manufacture a universal truth score.
+- **Absence has provenance.** No result, no collection, unavailable evidence,
+  and evidence withheld for safety are different states.
+- **Power stays visible.** Governance, funding, moderation, infrastructure, and
+  protocol departures should be part of the inspectable record.
 - **Safety grows with consequence.** High-consequence use requires stronger
   validation, access controls, auditability, and independent review.
 
@@ -249,6 +256,11 @@ high-consequence deployment:
 - Durable audit logs, backups, replication, and disaster recovery.
 - Privacy controls, consent handling, redaction, and safe deletion governance.
 - A stable public API and versioned interoperability specification.
+- A ratified epistemic constitution and versioned evidence profiles.
+- Multidimensional verification states and an explicit model for honest
+  absence.
+- Downstream dependency analysis and narrative-drift detection.
+- A machine-readable contract and adversarial evaluations for model use.
 - Broad automated, adversarial, performance, and accessibility testing.
 - Independent security, cryptographic, legal, ethical, and domain review.
 

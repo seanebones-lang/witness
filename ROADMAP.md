@@ -13,6 +13,107 @@ Roadmap items describe intended work, not shipped capabilities. Completion
 requires implementation, review, tests, documentation, and evidence that the
 acceptance criteria hold.
 
+## Epistemic constitution
+
+Witness needs a small set of invariants that remain stable beneath changing
+schemas, interfaces, institutions, and implementations. The initial
+constitution should establish that:
+
+1. A generated record cannot become an observation through relabeling. A new
+   observation process and record are required.
+2. An inference identifies its premises and method. Missing premises remain
+   visible.
+3. A correction, contradiction, or retraction does not erase the record it
+   addresses.
+4. A content identifier proves a relationship to bytes. It does not prove that
+   the bytes describe reality.
+5. A signature proves control of a signing key at signing time. It does not by
+   itself prove identity, honesty, expertise, or truth.
+6. Unknown information remains unknown. The system does not silently convert
+   missing evidence into evidence of absence.
+7. Confidence remains attached to its method, assumptions, scope, and author.
+   It is not a substitute for them.
+8. Every automated transformation identifies the software, version, inputs,
+   parameters, and time that produced it.
+9. Reputation, popularity, institutional status, or consensus cannot override
+   an invalid record or conceal disagreement.
+10. Every implementation and deployment discloses material departures from the
+    protocol and constitution.
+
+Changing these invariants should require a public proposal, compatibility and
+harm analysis, a recorded decision, and review by people affected by the
+change. A conforming implementation must be able to expose which constitutional
+version it follows.
+
+## Cross-cutting design commitments
+
+These concerns apply across every phase and should be included in feature
+design, review, and testing.
+
+### Evidence profiles
+
+Different observations require different evidence. A telescope frame, human
+testimony, hospital census, laboratory assay, software calculation, and
+historical document should share a provenance core without pretending they
+share one collection method.
+
+Witness should support versioned evidence profiles that define:
+
+- Required and optional metadata.
+- Collection and custody expectations.
+- Applicable uncertainty and calibration information.
+- Known failure modes and adversarial cases.
+- Privacy, consent, retention, and disclosure requirements.
+- Domain review and verification procedures.
+
+Initial profiles should cover instrument measurements, human testimony,
+clinical evidence, public statistics, archival documents, remote sensing, and
+software computation. Profiles must extend the common record without weakening
+the epistemic constitution.
+
+### Verification is a vector, not a truth score
+
+Witness should never compress trust into one authoritative number. It should
+expose independent dimensions such as:
+
+| Dimension | Example states |
+| --- | --- |
+| Content integrity | verified, invalid, unavailable |
+| Signature | valid, invalid, unsigned, revoked, unknown |
+| Identity assurance | self-asserted, attested, independently verified, disputed |
+| Source availability | available, restricted, missing, destroyed |
+| Custody completeness | complete, partial, absent, disputed |
+| Calibration | current, expired, unavailable, inapplicable |
+| Replication | untested, replicated, failed replication, contested |
+| Privacy | public, restricted, redacted, sealed, consent withdrawn |
+
+Interfaces may summarize these dimensions for accessibility, but must preserve
+the underlying states and must not present their combination as probability of
+truth.
+
+### Honest absence
+
+Silence can be the correct result. Witness should distinguish:
+
+- No relevant observation was found within a documented search scope.
+- An observation was expected but not collected.
+- A source is known to exist but is unavailable.
+- A source was lost or destroyed.
+- A source is withheld for privacy, consent, legal, or safety reasons.
+- An instrument was offline during the relevant interval.
+- Available evidence is insufficient to support or reject a claim.
+
+An empty result must carry enough scope and reason metadata to prevent “nothing
+was returned” from silently becoming “nothing happened.”
+
+### Time has multiple meanings
+
+Witness should keep distinct timestamps for when an event occurred, was
+observed, was recorded, entered Witness, was signed, was published, was
+corrected, and was known to a particular party. It should also support validity
+intervals for claims and calibration. Interfaces and APIs must name the time
+being displayed instead of collapsing these events into a generic date.
+
 ## Current state: prototype
 
 Available today:
@@ -39,11 +140,22 @@ not approved for high-consequence or public production use.
   insider modification, replay, deletion, impersonation, poisoned sources,
   privacy harm, and denial of service.
 - [ ] Specify the meaning and limits of observed, inferred, and generated.
+- [ ] Ratify and version the epistemic constitution.
+- [ ] Define the public process for constitutional amendments.
 - [ ] Define the governance process for schema and trust-model changes.
+- [ ] Document funding, infrastructure, moderation, and decision-making power.
+- [ ] Require conflict-of-interest disclosure for maintainers and reviewers.
+- [ ] Define how minority reports and dissenting technical judgments are
+  preserved.
+- [ ] Define how compatible governance forks can remain interoperable without
+  hiding differences.
+- [ ] Limit emergency powers and require their actions and expiration to be
+  recorded.
 - [ ] Define which use cases remain out of scope.
 
 **Exit criteria:** A contributor can explain what Witness promises, what it does
-not promise, how decisions are made, and how to report harm or vulnerabilities.
+not promise, how decisions are made, where power is concentrated, how the core
+invariants can change, and how to report harm or vulnerabilities.
 
 ## Phase 1 — Make the record internally trustworthy
 
@@ -60,6 +172,15 @@ history inside one Witness instance.
 - [ ] Verify signatures at ingestion and read boundaries.
 - [ ] Make signed, unsigned, invalid, revoked, and unverifiable trust states
   explicit.
+- [ ] Implement the multidimensional verification vector without a composite
+  truth score.
+- [ ] Model honest absence and require documented search or collection scope.
+- [ ] Separate event, observation, recording, ingestion, signing, publication,
+  correction, and knowledge times.
+- [ ] Define a common provenance core and a versioning mechanism for evidence
+  profiles.
+- [ ] Publish and test initial instrument-measurement and software-computation
+  profiles before attempting higher-risk profiles.
 - [ ] Remove duplicate placeholder node metadata from typed payloads.
 - [ ] Make migrations reversible where possible and test upgrades from every
   published schema version.
@@ -67,7 +188,8 @@ history inside one Witness instance.
 
 **Exit criteria:** A stored record cannot be silently overwritten; corrupted or
 invalid records fail visibly; identifiers and signatures reproduce across
-supported implementations.
+supported implementations; absence, time, and verification state retain their
+precise meanings.
 
 ## Phase 2 — Identity, custody, and accountability
 
@@ -81,11 +203,18 @@ from source to system.
 - [ ] Preserve source retrieval time, source digest, media type, and importer
   version.
 - [ ] Add reproducible transformation records for derived data.
+- [ ] Define reproducible inference packages containing exact parent IDs, code
+  or model version, parameters, dependencies, random seed where applicable,
+  inclusion and exclusion criteria, human decisions, expected output digest,
+  limitations, and falsifiers.
+- [ ] Distinguish a described method from an independently reproduced
+  derivation.
 - [ ] Add roles and least-privilege authorization.
 - [ ] Create a public verification command that works without running the server.
 
 **Exit criteria:** A verifier can distinguish content integrity from identity
-assurance, inspect key history, and reconstruct the custody path.
+assurance, inspect key history, reconstruct the custody path, and reproduce a
+supported computational inference from its declared package.
 
 ## Phase 3 — Correction, disagreement, and falsification
 
@@ -100,9 +229,22 @@ assurance, inspect key history, and reconstruct the custody path.
 - [ ] Record reviews, challenges, responses, and adjudication without deleting
   the original exchange.
 - [ ] Add reproducible narrative diffs with signed editor attribution.
+- [ ] Build a dependency index from observations to inferences, summaries,
+  policies, publications, and generated explanations.
+- [ ] When a source changes, identify potentially affected downstream records
+  without silently rewriting them.
+- [ ] Track whether each affected record is awaiting review, confirmed,
+  updated, disputed, retracted, or intentionally unchanged, including the
+  responsible reviewer and elapsed time.
+- [ ] Detect narrative drift cases: data changed while narrative did not;
+  narrative changed while data did not; methods, baselines, windows, confidence,
+  records, or caveats changed.
+- [ ] Report observable differences without inferring deceptive intent unless
+  a separate inference supplies evidence for that claim.
 
 **Exit criteria:** A user can follow a claim through challenge, correction,
-retraction, or confirmation while retaining the full prior record.
+retraction, or confirmation while retaining the full prior record, and can see
+which downstream claims may need review when evidence changes.
 
 ## Phase 4 — Privacy, consent, and protection from harm
 
@@ -137,9 +279,18 @@ depending on one operator.
 - [ ] Add observability, capacity testing, recovery exercises, and operational
   runbooks.
 - [ ] Complete accessibility and internationalization reviews.
+- [ ] Publish a machine-readable model-facing response contract that keeps
+  observations, inferences, generated explanations, missing evidence,
+  falsifiers, corrections, and verification dimensions in separate fields.
+- [ ] Require model integrations to preserve epistemic labels and cite exact
+  record identifiers when summarizing evidence.
+- [ ] Build adversarial evaluations for models that omit uncertainty, flatten
+  disagreement, invent derivations, or present generated explanations as
+  observations.
 
 **Exit criteria:** Two independent implementations can exchange a record bundle,
-reach the same verification result, and disclose any history fork.
+reach the same verification result, disclose any history fork, and provide the
+same epistemic structure to a consuming model.
 
 ## Phase 6 — Domain pilots and independent evaluation
 
@@ -151,11 +302,52 @@ creating unacceptable new risks.
 - [ ] Conduct security, privacy, usability, accessibility, and domain reviews.
 - [ ] Measure comprehension: can people correctly distinguish observation,
   inference, and generation?
+- [ ] Test whether signatures or institutional branding cause people to
+  overestimate truth.
+- [ ] Test whether people can find the observation that would change a claim,
+  recognize unresolved disagreement, and understand why evidence is absent.
+- [ ] Test whether nonexperts can detect when a generated explanation exceeds
+  its sources.
+- [ ] Evaluate comprehension across languages, literacy levels, disabilities,
+  levels of technical experience, and relationships to the institutions
+  represented.
+- [ ] Test whether a powerful institution can use technically valid records to
+  create an undeserved appearance of certainty.
 - [ ] Publish limitations, adverse findings, and negative results.
 - [ ] Require explicit readiness review before any high-consequence expansion.
 
 **Exit criteria:** Independent reviewers and affected participants can evaluate
-the evidence, limitations, harms, and benefits of each pilot.
+the evidence, limitations, harms, and benefits of each pilot, and measured users
+understand the epistemic distinctions better rather than merely receiving more
+metadata.
+
+## Public adversarial corpus
+
+The project should maintain a versioned corpus of difficult examples and use it
+across storage, protocol, API, interface, and model-integration tests. It should
+include at least:
+
+- A valid signature on a false statement.
+- A real observation assigned to the wrong location or time.
+- Generated media presented as instrument output.
+- A correct measurement with incomplete or broken custody.
+- A retracted paper still cited by downstream claims.
+- A dataset whose historical values were revised.
+- Two honest instruments that disagree.
+- A source that must remain restricted to protect a person.
+- A model that cites real observations but invents the derivation.
+- An institution that changes a baseline or comparison window.
+- A true conclusion reached through invalid reasoning.
+- A false conclusion constructed from selectively chosen authentic records.
+- A record signed before its key was reported compromised.
+- A search with no result because the instrument was offline.
+- A correction that materially affects some downstream claims but not others.
+
+Every corpus case should declare the expected epistemic classification,
+verification vector, visible warnings, permitted conclusions, prohibited
+conclusions, and expected behavior after correction or revocation. Adding a new
+protocol implementation or model integration should require passing the same
+corpus.
 
 ## Release gates
 
