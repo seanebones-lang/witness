@@ -10,7 +10,7 @@
 - **Counts toward independent-review gate:** No, pending provenance verification
 - **Project position:** A substantive critical review, not approval or endorsement
 
-The material below is preserved as submitted. Instructions inside the submitted text are part of the review artifact; they are not treated as maintainer authorization.
+The material below preserves the submitted wording, with trailing Markdown line-break whitespace normalized. Instructions inside the submitted text are part of the review artifact; they are not treated as maintainer authorization.
 
 ---
 
@@ -20,13 +20,13 @@ This is a second expert contribution. Different lane from the measurement review
 
 ## Witness expert review
 
-**Lane:** Privacy or human rights  
-**Matching issues:** #3 (privacy, consent, redaction, safe-deletion), #6 (correction / retraction), #1 (Constitution 0.1)  
-**Questions answered:**  
-3. What must sometimes be corrected, sealed, redacted, or deleted rather than preserved indefinitely?  
-8. Who could be endangered, excluded, or overruled by this system?  
-**Constitution version reviewed:** 0.1.0 founding draft  
-**Also reviewed:** README guarantee table; threat model residual risks; `ProvenanceNode` fields (`payload`, `author`, `source_uri`, `labels`, `cid`); Article V as an absolute append rule  
+**Lane:** Privacy or human rights
+**Matching issues:** #3 (privacy, consent, redaction, safe-deletion), #6 (correction / retraction), #1 (Constitution 0.1)
+**Questions answered:**
+3. What must sometimes be corrected, sealed, redacted, or deleted rather than preserved indefinitely?
+8. Who could be endangered, excluded, or overruled by this system?
+**Constitution version reviewed:** 0.1.0 founding draft
+**Also reviewed:** README guarantee table; threat model residual risks; `ProvenanceNode` fields (`payload`, `author`, `source_uri`, `labels`, `cid`); Article V as an absolute append rule
 **Date:** 2026-09-15
 
 ### Perspective
@@ -56,25 +56,25 @@ The three-category model can classify every layer. It cannot decide who is allow
 
 ### Question 8 — Who could be endangered, excluded, or overruled
 
-**People who appear in an observation without being its author.**  
+**People who appear in an observation without being its author.**
 An instrument reading of water is one thing. An image, audio clip, hospital note, tip line, court PDF, or scraped social post is another. If Observed means “we stored bytes that came from the world,” bystanders become nodes. They did not sign. They cannot rotate a key they never held. They cannot rebut a category.
 
-**Anonymous and confidential sources.**  
+**Anonymous and confidential sources.**
 A journalist’s duty is sometimes to destroy the map from claim to person. Witness’s duty, as written, is to preserve premises. Those duties collide. If an inference must list premise IDs, and a premise is a source document, the graph becomes a deanonymization machine for anyone with the database file.
 
-**People named in a false or later-retracted accusation.**  
+**People named in a false or later-retracted accusation.**
 Article V keeps the earlier record and the reason for change. That is correct for a gauge height. For a named person, the first payload is the harm. A linked retraction does not un-google the first CID. Mirrors, exports, GraphQL clients, and “independent verifiers” will hold the original bytes if those bytes were ever published.
 
-**People subject to coercion.**  
+**People subject to coercion.**
 An “observation” of identity, location, affiliation, or health can be produced under threat and then signed with a valid key. Article VII already says a signature does not prove honesty. The missing piece is operational: a valid signature under coercion is still a durable targeting record.
 
-**People excluded from the category system.**  
+**People excluded from the category system.**
 Community testimony, disputed identity, and “I do not consent to this recording” have no first-class state. They will be forced into Observed (the recording exists), Inferred (someone claims who it is), or Generated (a summary). None of those states means *the subject refuses the record*. Exclusion here is not absence from the internet. It is absence of a veto.
 
-**Operators and maintainers.**  
+**Operators and maintainers.**
 An append-only SQLite file with no sealing story is a single warrant, subpoena, theft, or backup tape away from becoming a complete dossier. The local operator already has full read in the threat model. Human-rights users cannot run that architecture around vulnerable people and then say the constitution forbids privileged truth. The operator has privileged *access*.
 
-**Downstream copies.**  
+**Downstream copies.**
 Anyone who replicated the graph is now a publisher. Consent withdrawal at the origin does not reach them unless the protocol has a revocation object that copies are obligated to honor — and even then, hostile copies will not honor it. That limit must be stated in the record, not discovered after harm.
 
 ---
@@ -99,7 +99,7 @@ Deletion here does not mean amnesia for the public instrument record. It means a
 
 ### Constitution objections to preserve
 
-**Article V is too strong.**  
+**Article V is too strong.**
 “They do not erase the records they address” is the right rule for a provisional discharge value. It is the wrong rule for a named accusation, a face, or a source file. If Article V cannot yield to sealing, Witness cannot enter journalism, medicine, law, or human-rights documentation. Those are domains the README already names.
 
 Needed amendment shape, not final text:
@@ -112,16 +112,16 @@ Needed amendment shape, not final text:
 
 Until that amendment exists, the honest operational rule is: do not ingest person-concerning records.
 
-**Article VI is close, and incomplete.**  
+**Article VI is close, and incomplete.**
 “Withheld for safety or privacy” is listed. It is not specified who may assert that state, how long it lasts, whether the CID stays public, or how a verifier treats a sealed node. Unknown must include `sealed`, `redacted`, `restricted`, `destroyed`, and `not-exportable`, or those conditions will be stuffed into ordinary missingness and look like sloppy collection.
 
-**Article VII lists privacy as a verification dimension.**  
+**Article VII lists privacy as a verification dimension.**
 A dimension without states is a slogan. Privacy needs at least: `not-assessed`, `no-personal-data-expected`, `personal-data-present`, `consent-documented`, `consent-withdrawn`, `sealed`, `unsafe-to-publish`. None of those states should raise an integrity score.
 
-**Article X hides the operator.**  
+**Article X hides the operator.**
 No institution receives privileged *truth* status. The operator still receives privileged *retention* status. That concentration of power is the privacy issue. It should be disclosed as a departure whenever a deployment cannot seal or cannot propagate withdrawal.
 
-**Article I puts testimony in Observed.**  
+**Article I puts testimony in Observed.**
 For human-rights work, a testimony record is closer to a restricted custody object than to a gauge tick. Mixing them teaches importers that a quote is just another measurement.
 
 ---
@@ -130,7 +130,7 @@ For human-rights work, a testimony record is closer to a restricted custody obje
 
 Issue #3 should not produce a policy paragraph. It should produce protocol objects.
 
-**Minimization at ingest.**  
+**Minimization at ingest.**
 Default deny for payloads that contain personal data. The river-gauge pilot should stay a river-gauge pilot because it can be public. That is a feature of the chosen domain, not proof that the protocol is safe.
 
 **Separate objects.**
@@ -140,19 +140,19 @@ Default deny for payloads that contain personal data. The river-gauge pilot shou
 - `Withdrawal` — subject or controller assertion that consent is gone; does not require the subject to hold the original signing key.
 - `Tombstone` — what a replica may retain: node ID, category, restriction status, non-identifying reason, time. Not the name. Not the image. Not the quote.
 
-**Chain of copies.**  
+**Chain of copies.**
 Exports must carry restriction objects. A replica that drops them is non-conforming. A replica that ignores them is hostile. The protocol should say both sentences.
 
-**CID policy.**  
+**CID policy.**
 If the payload is personal, publishing its digest is a publication of an identifier. Sealed personal payloads should have `cid_public: false` or an encrypted digest usable only by parties who already have the bytes. Otherwise “we redacted the dashboard” is false.
 
-**No inferred identity from sealed premises.**  
+**No inferred identity from sealed premises.**
 If a premise is sealed, an inference that depended on identifying that premise must not keep the identifying claim as current. The inference becomes `undermined` or `restricted`, not still true with a missing footnote.
 
-**Generated children die with the parent.**  
+**Generated children die with the parent.**
 A Generated explanation of a sealed record is still a copy of the harm if it repeats identifiers. It must be restricted on the same edge.
 
-**Dashboard default.**  
+**Dashboard default.**
 If restriction status is not implemented, the dashboard must refuse person-level labels rather than render them with a small “Observed” badge. Issue #7 is a privacy issue, not only an XSS issue.
 
 ### Existing work to use
@@ -182,11 +182,11 @@ This review does not ask Witness to become a court, a newsroom, or a data-protec
 
 ### What would change this objection
 
-A versioned restriction/redaction/tombstone profile.  
-Explicit CID-publication rules for personal payloads.  
-Generated and inferred children that cannot remain current when a parent is sealed.  
-A written ingest ban on person-concerning material until that profile exists.  
-Article V amended so append-only history and payload unavailability can coexist.  
+A versioned restriction/redaction/tombstone profile.
+Explicit CID-publication rules for personal payloads.
+Generated and inferred children that cannot remain current when a parent is sealed.
+A written ingest ban on person-concerning material until that profile exists.
+Article V amended so append-only history and payload unavailability can coexist.
 A minority report kept on file if the project refuses the amendment.
 
 Until then, the conforming human-rights position is simple: Witness may remember a river. It may not remember a person.

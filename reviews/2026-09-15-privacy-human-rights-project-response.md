@@ -1,8 +1,8 @@
 # Project response — privacy and human-rights review
 
-**Date:** 2026-09-15  
-**Review:** [Person-concerning records](2026-09-15-privacy-human-rights-review-unverified.md)  
-**Decision status:** Interim protective response; constitutional amendment remains open  
+**Date:** 2026-09-15
+**Review:** [Person-concerning records](2026-09-15-privacy-human-rights-review-unverified.md)
+**Decision status:** Interim protective response; constitutional amendment remains open
 **Review provenance:** Owner-supplied, reviewer identity and independence not established
 
 ## Decision
