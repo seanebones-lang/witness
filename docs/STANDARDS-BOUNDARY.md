@@ -1,7 +1,7 @@
 # Standards boundary and design direction
 
-**Status:** Accepted direction; mappings and conformance are not implemented  
-**Basis:** Owner-supplied standards review dated 2026-09-15  
+**Status:** Accepted direction; mappings and conformance are not implemented
+**Basis:** Owner-supplied standards review dated 2026-09-15
 **Decision scope:** Architecture and interoperability planning
 
 Witness should add the smallest vocabulary needed to preserve an epistemic
