@@ -68,6 +68,17 @@ enum Commands {
         #[arg(long)] domain: Option<String>,
         #[arg(long)] labels: Vec<String>,
     },
+    /// Ingest a generation (LLM output, synthetic data, model output)
+    Generate {
+        #[arg(long)] content: String,
+        #[arg(long)] generator: String,
+        #[arg(long)] prompt: Option<String>,
+        #[arg(long)] model: Option<String>,
+        #[arg(long)] author_id: String,
+        #[arg(long)] author_name: Option<String>,
+        #[arg(long)] domain: Option<String>,
+        #[arg(long)] labels: Vec<String>,
+    },
     /// Generate a new signing keypair
     GenKey {
         #[arg(long)] output: String,
@@ -182,6 +193,44 @@ async fn main() -> Result<()> {
 
             let node = service.ingest_inference(derivation, author, labels, domain, None, keypair.as_ref()).await?;
             println!("Ingested inference: {}", node.id);
+        }
+        Commands::Generate { content, generator, prompt, model, author_id, author_name, domain, labels } => {
+            let author = Author {
+                id: author_id,
+                name: author_name,
+                author_type: AuthorType::Model,
+                metadata: std::collections::HashMap::new(),
+            };
+
+            let model_ref = ModelRef {
+                id: generator,
+                version: model.unwrap_or_else(|| "unknown".to_string()),
+                hash: None,
+                training_data_ref: None,
+            };
+
+            let generation = Generation {
+                node: ProvenanceNode {
+                    id: Uuid::new_v4(),
+                    cid: CID::new(content.as_bytes()),
+                    epistemic_type: EpistemicType::Generated,
+                    payload: serde_json::json!({"content": content}),
+                    author: author.clone(),
+                    timestamp: Utc::now(),
+                    parents: vec![],
+                    signature: None,
+                    labels: labels.clone(),
+                    domain: domain.clone(),
+                    source_uri: None,
+                },
+                model: model_ref,
+                prompt,
+                parameters: std::collections::HashMap::new(),
+                human_reviewed: false,
+            };
+
+            let node = service.ingest_generation(generation, author, labels, domain, None, keypair.as_ref()).await?;
+            println!("Ingested generation: {}", node.id);
         }
         Commands::GenKey { output } => {
             let kp = SigningKeypair::generate();
