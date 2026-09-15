@@ -334,6 +334,16 @@ inference, correction, retraction, contradiction, dispute, and sealing with the
 role-bound authority and safe defaults newsroom accountability requires. See
 the [journalism project response](reviews/2026-09-15-journalism-public-records-project-response.md).
 
+### Interim model-ingest boundary
+
+Do not allow a model to assign Observed status to its own output or to fill
+missing observation fields. Model-produced JSON remains Generated unless an
+independent, profile-conforming transformation reconstructs the claimed fields
+from preserved source artifacts. Tool response bytes, deterministic extraction,
+model inference, and model narration are separate records. The current schema
+does not yet enforce artifact-backed observation profiles, parent adequacy, or
+complete model provenance. See the [AI evaluation boundary](docs/AI-EVALUATION-BOUNDARY.md).
+
 ## Contributing
 
 Witness needs more than software contributions. Researchers, archivists,

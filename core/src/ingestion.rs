@@ -98,6 +98,7 @@ impl IngestionService {
                 continue;
             }
             let node: ProvenanceNode = serde_json::from_str(&line)?;
+            self.validate_import_relationships(&node).await?;
             if !verify_cid(&node.payload, &node.cid)? {
                 return Err(crate::WitnessError::Validation(format!(
                     "JSONL line has a CID that does not match its payload: {}",
@@ -115,6 +116,25 @@ impl IngestionService {
         }
 
         Ok(nodes)
+    }
+
+    async fn validate_import_relationships(&self, node: &ProvenanceNode) -> Result<()> {
+        if node.epistemic_type == EpistemicType::Observed && !node.parents.is_empty() {
+            return Err(crate::WitnessError::Validation(format!(
+                "observed import cannot declare parent records in the current schema: {}",
+                node.id
+            )));
+        }
+
+        for parent in &node.parents {
+            if self.storage.get_node(*parent).await?.is_none() {
+                return Err(crate::WitnessError::Validation(format!(
+                    "imported record parent does not exist: {parent}"
+                )));
+            }
+        }
+
+        Ok(())
     }
 
     /// Ingest from CSV (observations only for now)
@@ -467,6 +487,46 @@ mod tests {
         let result = service
             .ingest_inference(derivation, author(), vec![], None, None, None)
             .await;
+
+        assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+        drop(service);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn observed_import_rejects_declared_parent() {
+        let (service, path) = test_service().await;
+        let mut node = service
+            .build_observation_node(measurement(), author(), vec![], None, None)
+            .unwrap();
+        node.parents.push(Uuid::new_v4());
+
+        let result = service.validate_import_relationships(&node).await;
+
+        assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+        drop(service);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn inferred_import_rejects_missing_parent() {
+        let (service, path) = test_service().await;
+        let missing_parent = Uuid::new_v4();
+        let node = ProvenanceNode {
+            id: Uuid::new_v4(),
+            cid: CID(String::new()),
+            epistemic_type: EpistemicType::Inferred,
+            payload: serde_json::Value::Null,
+            author: author(),
+            timestamp: Utc::now(),
+            parents: vec![missing_parent],
+            labels: Vec::new(),
+            signature: None,
+            domain: None,
+            source_uri: None,
+        };
+
+        let result = service.validate_import_relationships(&node).await;
 
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
         drop(service);

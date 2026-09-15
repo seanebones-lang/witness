@@ -255,6 +255,32 @@ invariants can change, and how to report harm or vulnerabilities.
 - [ ] Define release-integrity evidence including pinned CI actions, signed tags
   or artifacts, and a reproducible build recipe before distributing a verifier
   as trusted software.
+- [x] Reject imported Observed records with declared parents in the current
+  schema and reject imported relationships whose parents are absent, closing a
+  JSONL path around native ingestion checks.
+- [x] Give Generated dashboard cards a subordinate dashed treatment while
+  retaining explicit text labels and accessible non-color distinctions.
+- [x] Prohibit models from assigning Observed status to their own output or
+  supplying missing observation fields during the prototype stage.
+- [ ] Add `producer_class` independently from epistemic type, covering
+  instrument, human, non-model software, model, and unknown producers.
+- [ ] Require a matching raw artifact CID and profile-conforming transformation
+  before an instrument record can qualify as Observed.
+- [ ] Define and enforce parent adequacy: a cited parent must contain the field
+  or evidence actually used by the claim, not merely exist by UUID.
+- [ ] Add a graph walk that reports `no-path-to-artifact`, including when every
+  path ends in Generated material or an observation without artifact fixity.
+- [ ] Replace `human_reviewed: bool` with a review record containing reviewer
+  identity or stable pseudonym, time, exact scope, checks performed, result,
+  limitations, and dissent.
+- [ ] Treat prose-only falsifiers as Generated commentary until they bind to a
+  machine-checkable condition or selector for a future record.
+- [ ] Add a non-promotable fixture class and tests preventing `demo-fixture`
+  material or model imitations of it from satisfying public evidence profiles.
+- [ ] Publish and run the AI fail-closed suite for invented observations,
+  dropped qualifiers, borrowed premises, omitted uncertainty, flattened
+  disputes, category laundering, self-attestation, review theater, and
+  judge-model agreement.
 
 ## Phase 1 — Make the record internally trustworthy
 
