@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Private security report
+    url: https://github.com/seanebones-lang/witness/security/advisories/new
+    about: Report vulnerabilities or sensitive security concerns privately.

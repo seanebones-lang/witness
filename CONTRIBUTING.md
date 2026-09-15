@@ -31,11 +31,14 @@ Read:
 1. [MANIFESTO.md](MANIFESTO.md), which states why Witness exists.
 2. [README.md](README.md), especially the guarantees and limitations.
 3. [ROADMAP.md](ROADMAP.md), especially the current phase and release gates.
-4. Existing issues and pull requests to avoid duplicating active work.
+4. [docs/EPISTEMIC-CONSTITUTION.md](docs/EPISTEMIC-CONSTITUTION.md), which states
+   the invariants every implementation must preserve.
+5. [GOVERNANCE.md](GOVERNANCE.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+6. Existing issues and pull requests to avoid duplicating active work.
 
-This repository does not yet contain a license. Public visibility does not by
-itself grant permission to copy, distribute, modify, or deploy the code. Please
-open an issue about licensing before submitting a substantial code contribution.
+Contributions are accepted under the
+[Mozilla Public License 2.0](LICENSE). By submitting a contribution, you agree
+to license it under those terms.
 
 ## Ways to help now
 
@@ -187,16 +190,14 @@ idea from judgment of a person. State uncertainty. Correct mistakes visibly.
 Make room for people who are affected by a system even when they do not write
 its code.
 
-Formal conduct and enforcement rules will be added before the project advances
-beyond prototype status. Until then, harassment, threats, exposure of private
-information, and discriminatory behavior are not acceptable in project spaces.
+Project conduct and enforcement rules are in
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security reports
 
 Do not publish private keys, exploitable vulnerabilities, personal data, or
-sensitive evidence in a public issue. Until `SECURITY.md` establishes a dedicated
-private channel, use the repository owner's private contact option on GitHub and
-share only the minimum information needed to establish contact.
+sensitive evidence in a public issue. Follow the private reporting process in
+[SECURITY.md](SECURITY.md).
 
 ## A note on ambition
 

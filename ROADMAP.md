@@ -133,25 +133,27 @@ not approved for high-consequence or public production use.
 
 **Goal:** Make the project's promises, ownership, and safe-use boundary explicit.
 
-- [ ] Choose and publish an open-source license.
-- [ ] Add a code of conduct and documented enforcement contact.
-- [ ] Add a private security-reporting channel and `SECURITY.md`.
-- [ ] Publish a threat model covering malicious submitters, compromised keys,
+- [x] Choose and publish an open-source license (MPL 2.0).
+- [x] Add a code of conduct and documented enforcement contact.
+- [x] Add a private security-reporting channel and `SECURITY.md`.
+- [x] Publish a threat model covering malicious submitters, compromised keys,
   insider modification, replay, deletion, impersonation, poisoned sources,
   privacy harm, and denial of service.
-- [ ] Specify the meaning and limits of observed, inferred, and generated.
-- [ ] Ratify and version the epistemic constitution.
-- [ ] Define the public process for constitutional amendments.
-- [ ] Define the governance process for schema and trust-model changes.
-- [ ] Document funding, infrastructure, moderation, and decision-making power.
-- [ ] Require conflict-of-interest disclosure for maintainers and reviewers.
-- [ ] Define how minority reports and dissenting technical judgments are
+- [x] Specify the meaning and limits of observed, inferred, and generated.
+- [ ] Ratify the versioned 0.1 founding draft after independent technical,
+  domain, privacy, and community review.
+- [x] Define the public process for constitutional amendments.
+- [x] Define the governance process for schema and trust-model changes.
+- [x] Document current funding, infrastructure, moderation, and decision-making
+  power; update the disclosure when those facts change.
+- [x] Require conflict-of-interest disclosure for maintainers and reviewers.
+- [x] Define how minority reports and dissenting technical judgments are
   preserved.
-- [ ] Define how compatible governance forks can remain interoperable without
+- [x] Define how compatible governance forks can remain interoperable without
   hiding differences.
-- [ ] Limit emergency powers and require their actions and expiration to be
+- [x] Limit emergency powers and require their actions and expiration to be
   recorded.
-- [ ] Define which use cases remain out of scope.
+- [x] Define which use cases remain out of scope.
 
 **Exit criteria:** A contributor can explain what Witness promises, what it does
 not promise, how decisions are made, where power is concentrated, how the core
@@ -162,7 +164,7 @@ invariants can change, and how to report harm or vulnerabilities.
 **Goal:** Eliminate silent corruption, ambiguous identifiers, and mutable
 history inside one Witness instance.
 
-- [ ] Replace database decoding panics with typed, diagnosable errors.
+- [x] Replace database decoding panics with typed, diagnosable errors.
 - [x] Enforce append-only node storage.
 - [ ] Represent corrections as new linked records.
 - [ ] Validate parent existence, edge direction, and epistemic constraints.

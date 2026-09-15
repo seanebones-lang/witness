@@ -1,0 +1,45 @@
+name: Problem or proposal
+description: Describe a failure, missing guarantee, or bounded improvement.
+title: ""
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include personal data, confidential evidence, credentials, private keys, or unpatched vulnerability details. Use the private security-reporting link for vulnerabilities.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can fail, and in what concrete situation?
+    validations:
+      required: true
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected people
+      description: Who benefits, bears risk, or should be consulted?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Example or evidence
+      description: Provide a small safe example, source, or reproducible case.
+  - type: textarea
+    id: guarantee
+    attributes:
+      label: Proposed guarantee and boundary
+      description: What should become reliable, and what would remain unproven?
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: What test, fixture, review, or observation could demonstrate the result?
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility, privacy, and power
+      description: Note effects on existing records, APIs, signatures, privacy, governance, or authority.

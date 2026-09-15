@@ -80,7 +80,7 @@ impl Storage {
 
         let row = q.fetch_optional(&*self.pool).await?;
 
-        Ok(row.map(|r| self.row_to_node(r)))
+        row.map(Self::row_to_node).transpose()
     }
 
     pub async fn query_nodes(
@@ -142,7 +142,7 @@ impl Storage {
         }
 
         let rows = q.fetch_all(&*self.pool).await?;
-        Ok(rows.into_iter().map(|r| self.row_to_node(r)).collect())
+        rows.into_iter().map(Self::row_to_node).collect()
     }
 
     pub async fn count_nodes(&self, filter: &QueryFilter) -> Result<i64> {
@@ -185,7 +185,7 @@ impl Storage {
 
         let rows = q.fetch_all(&*self.pool).await?;
 
-        Ok(rows.into_iter().map(|r| self.row_to_node(r)).collect())
+        rows.into_iter().map(Self::row_to_node).collect()
     }
 
     pub async fn get_parents(&self, child_id: Uuid) -> Result<Vec<ProvenanceNode>> {
@@ -239,43 +239,135 @@ impl Storage {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| NarrativeDiff {
-                inference_id: Uuid::parse_str(&r.inference_id).unwrap(),
-                old_version: serde_json::from_str(&r.old_version).unwrap(),
-                new_version: serde_json::from_str(&r.new_version).unwrap(),
-                changed_fields: serde_json::from_str(&r.changed_fields).unwrap(),
-                timestamp: DateTime::parse_from_rfc3339(&r.timestamp)
-                    .unwrap()
-                    .with_timezone(&Utc),
-                editor: serde_json::from_str(&r.editor).unwrap(),
+        rows.into_iter()
+            .map(|r| {
+                Ok(NarrativeDiff {
+                    inference_id: parse_uuid(&r.inference_id, "narrative diff inference_id")?,
+                    old_version: serde_json::from_str(&r.old_version)?,
+                    new_version: serde_json::from_str(&r.new_version)?,
+                    changed_fields: serde_json::from_str(&r.changed_fields)?,
+                    timestamp: parse_timestamp(&r.timestamp, "narrative diff timestamp")?,
+                    editor: serde_json::from_str(&r.editor)?,
+                })
             })
-            .collect())
+            .collect()
     }
 
-    fn row_to_node(&self, row: sqlx::sqlite::SqliteRow) -> ProvenanceNode {
-        ProvenanceNode {
-            id: Uuid::parse_str(&row.get::<String, _>("id")).unwrap(),
+    fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<ProvenanceNode> {
+        let id = row.get::<String, _>("id");
+        let epistemic_type = row.get::<String, _>("epistemic_type");
+        let timestamp = row.get::<String, _>("timestamp");
+
+        Ok(ProvenanceNode {
+            id: parse_uuid(&id, "node id")?,
             cid: CID(row.get::<String, _>("cid")),
-            epistemic_type: match row.get::<String, _>("epistemic_type").as_str() {
+            epistemic_type: match epistemic_type.as_str() {
                 "observed" => EpistemicType::Observed,
                 "inferred" => EpistemicType::Inferred,
                 "generated" => EpistemicType::Generated,
-                _ => EpistemicType::Observed,
+                other => {
+                    return Err(crate::WitnessError::Validation(format!(
+                        "unsupported stored epistemic type: {other}"
+                    )));
+                }
             },
-            payload: serde_json::from_str(&row.get::<String, _>("payload")).unwrap(),
-            author: serde_json::from_str(&row.get::<String, _>("author")).unwrap(),
-            timestamp: DateTime::parse_from_rfc3339(&row.get::<String, _>("timestamp"))
-                .unwrap()
-                .with_timezone(&Utc),
-            parents: serde_json::from_str(&row.get::<String, _>("parents")).unwrap(),
-            labels: serde_json::from_str(&row.get::<String, _>("labels")).unwrap(),
+            payload: serde_json::from_str(&row.get::<String, _>("payload"))?,
+            author: serde_json::from_str(&row.get::<String, _>("author"))?,
+            timestamp: parse_timestamp(&timestamp, "node timestamp")?,
+            parents: serde_json::from_str(&row.get::<String, _>("parents"))?,
+            labels: serde_json::from_str(&row.get::<String, _>("labels"))?,
             signature: row
                 .get::<Option<String>, _>("signature")
-                .and_then(|s| serde_json::from_str(&s).ok()),
+                .map(|value| serde_json::from_str(&value))
+                .transpose()?,
             domain: row.get("domain"),
             source_uri: row.get("source_uri"),
-        }
+        })
+    }
+}
+
+fn parse_uuid(value: &str, field: &str) -> Result<Uuid> {
+    Uuid::parse_str(value).map_err(|error| {
+        crate::WitnessError::Validation(format!("invalid stored {field}: {error}"))
+    })
+}
+
+fn parse_timestamp(value: &str, field: &str) -> Result<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(value)
+        .map(|timestamp| timestamp.with_timezone(&Utc))
+        .map_err(|error| {
+            crate::WitnessError::Validation(format!("invalid stored {field}: {error}"))
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn test_storage() -> (Storage, std::path::PathBuf) {
+        let path = std::env::temp_dir().join(format!("witness-storage-{}.db", Uuid::new_v4()));
+        std::fs::File::create(&path).unwrap();
+        let storage = Storage::new(&format!("sqlite://{}", path.display()))
+            .await
+            .unwrap();
+        (storage, path)
+    }
+
+    #[tokio::test]
+    async fn malformed_stored_node_returns_error_instead_of_panicking() {
+        let (storage, path) = test_storage().await;
+        let id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(id.to_string())
+        .bind("invalid-cid")
+        .bind("observed")
+        .bind("{not-json")
+        .bind(r#"{"id":"test","name":null,"author_type":"human","metadata":{}}"#)
+        .bind(Utc::now().to_rfc3339())
+        .bind("[]")
+        .bind("[]")
+        .execute(&*storage.pool)
+        .await
+        .unwrap();
+
+        let result = storage.get_node(id).await;
+        assert!(matches!(result, Err(crate::WitnessError::Serialization(_))));
+
+        drop(storage);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn unknown_stored_type_is_not_reclassified_as_observed() {
+        let (storage, path) = test_storage().await;
+        let id = Uuid::new_v4();
+        let mut connection = storage.pool.acquire().await.unwrap();
+        sqlx::query("PRAGMA ignore_check_constraints = ON")
+            .execute(&mut *connection)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(id.to_string())
+        .bind("invalid-cid")
+        .bind("unclassified")
+        .bind("{}")
+        .bind(r#"{"id":"test","name":null,"author_type":"human","metadata":{}}"#)
+        .bind(Utc::now().to_rfc3339())
+        .bind("[]")
+        .bind("[]")
+        .execute(&mut *connection)
+        .await
+        .unwrap();
+        drop(connection);
+
+        let result = storage.get_node(id).await;
+        assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+
+        drop(storage);
+        std::fs::remove_file(path).unwrap();
     }
 }

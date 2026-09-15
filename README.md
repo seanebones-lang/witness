@@ -69,6 +69,11 @@ Witness currently includes:
 - Initial automated tests for signature verification and payload tampering.
 - Validation that imported JSONL content identifiers and existing signatures
   match their records, and that inference premises already exist.
+- Typed failures for malformed stored records instead of read-path panics or
+  silent reclassification.
+- A public trust foundation: the founding epistemic constitution, verification
+  model, threat model, security policy, governance policy, code of conduct, and
+  automated pull-request checks.
 
 The detailed development sequence lives in [ROADMAP.md](ROADMAP.md).
 
@@ -292,6 +297,10 @@ experience can all identify assumptions the system would otherwise miss.
 Start with [CONTRIBUTING.md](CONTRIBUTING.md), then choose an item from
 [ROADMAP.md](ROADMAP.md). Small, clearly scoped contributions are welcome.
 
+The rules underneath the implementation live in the
+[Epistemic Constitution](docs/EPISTEMIC-CONSTITUTION.md). Project authority and
+decision procedures are described in [GOVERNANCE.md](GOVERNANCE.md).
+
 Please open an issue before undertaking a large architectural change. Describe
 the problem, affected communities, proposed guarantee, limits of that guarantee,
 and how the behavior can be tested.
@@ -300,17 +309,16 @@ and how the behavior can be tested.
 
 Do not put private signing keys, personal data, confidential records, secrets,
 or real high-risk evidence into issues, pull requests, sample databases, or test
-fixtures. Until a private vulnerability-reporting process is published, avoid
-posting exploitable security details publicly; use the repository owner's
-private contact option on GitHub.
+fixtures. Report vulnerabilities privately using the process in
+[SECURITY.md](SECURITY.md). The architecture and current attack boundaries are
+documented in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
 
-## License status
+## License
 
-This repository does not yet contain a license. Under default copyright law,
-public visibility does not automatically grant permission to copy, distribute,
-modify, or deploy the code. Selecting and publishing an appropriate license is
-a release blocker in the roadmap. Prospective code contributors should discuss
-licensing in an issue before submitting substantial work.
+Witness is licensed under the [Mozilla Public License 2.0](LICENSE). Changes to
+MPL-covered source files remain available under the MPL when distributed, while
+the files may be combined with a larger work under different terms. See the
+license text for the complete terms.
 
 ## Intention
 
