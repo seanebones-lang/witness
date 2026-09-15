@@ -1,0 +1,71 @@
+{
+  "events": [
+    {
+      "agent": "witness-usgs-retriever/0.1.0",
+      "authority_and_terms": "Retrieved from a public endpoint for a curated demonstration; no custody transfer, source signature, endorsement, or archival-institution status claimed.",
+      "event_type": "intake",
+      "object": "response.json",
+      "outcome": "stored-as-received",
+      "recorded_at": "2026-09-15T17:32:43.283428Z",
+      "source_location": "https://nwis.waterservices.usgs.gov/nwis/iv/?format=json&sites=09380000&parameterCd=00060&startDT=2024-07-01&endDT=2024-07-02&siteStatus=all"
+    },
+    {
+      "checks": [
+        {
+          "actual": {
+            "bytes": 1885,
+            "sha256": "74433bf0bc5941a93136cb562ee6d1a114b37375efde0e0dfe620912483474f1"
+          },
+          "artifact": "extracted-point.json",
+          "expected": {
+            "bytes": 1885,
+            "sha256": "74433bf0bc5941a93136cb562ee6d1a114b37375efde0e0dfe620912483474f1"
+          },
+          "matches": true
+        },
+        {
+          "actual": {
+            "bytes": 1750,
+            "sha256": "9a06ff0f95bfa015487dd0c3a571e93273c04369daaf55cf8dcb33d2be0d4c9f"
+          },
+          "artifact": "package-profile.json",
+          "expected": {
+            "bytes": 1750,
+            "sha256": "9a06ff0f95bfa015487dd0c3a571e93273c04369daaf55cf8dcb33d2be0d4c9f"
+          },
+          "matches": true
+        },
+        {
+          "actual": {
+            "bytes": 459,
+            "sha256": "263eaae72fce310751396dbe2dea3d204f04bc08288891fa77293465b29650e7"
+          },
+          "artifact": "response-headers.json",
+          "expected": {
+            "bytes": 459,
+            "sha256": "263eaae72fce310751396dbe2dea3d204f04bc08288891fa77293465b29650e7"
+          },
+          "matches": true
+        },
+        {
+          "actual": {
+            "bytes": 17886,
+            "sha256": "62760c301b71dbd51ede3c84af6672641a98a02267a9823950ee46eb376c8f69"
+          },
+          "artifact": "response.json",
+          "expected": {
+            "bytes": 17886,
+            "sha256": "62760c301b71dbd51ede3c84af6672641a98a02267a9823950ee46eb376c8f69"
+          },
+          "matches": true
+        }
+      ],
+      "event_type": "fixity-check",
+      "limits": "This local check compares bytes with the package manifest; it does not establish source authorship, independent custody, or archival certification.",
+      "outcome": "match",
+      "recorded_at": "2026-09-15T18:05:00Z",
+      "tool": "witness-fixity-recorder/0.1.0"
+    }
+  ],
+  "schema": "witness-preservation-events/0.1"
+}

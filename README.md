@@ -274,7 +274,7 @@ Contributions and design decisions should reinforce these principles:
 
 ## Reproducible reference story
 
-The first source-preserving demonstration is the [USGS river-gauge reference](reference/usgs-river-gauge/README.md). It commits exact response bytes, retrieval metadata, SHA-256 digests, a versioned extraction, and an independent verifier. The extracted point is deliberately marked as **not yet a conforming observation** because the current measurement model cannot preserve all required source semantics.
+The first source-preserving demonstration is the [USGS river-gauge reference](reference/usgs-river-gauge/README.md). It commits exact response bytes, retrieval metadata, SHA-256 digests, a versioned extraction, object roles and representation information, an intake event, a later fixity-check event, and an independent local verifier. The extracted point is deliberately marked as **not yet a conforming observation** because the current measurement model cannot preserve all required source semantics. Witness maintains this curated demonstration copy; it is not USGS's archival institution or record of record, and the package does not claim OAIS, PREMIS, BagIt, WARC, ISO 16363, or trusted-repository conformance.
 
 ## Standards direction
 

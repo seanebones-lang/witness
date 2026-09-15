@@ -281,6 +281,28 @@ invariants can change, and how to report harm or vulnerabilities.
   dropped qualifiers, borrowed premises, omitted uncertainty, flattened
   disputes, category laundering, self-attestation, review theater, and
   judge-model agreement.
+- [x] Extend the USGS demonstration with an explicit multi-object package
+  profile, intake event, later fixity-check event, representation information,
+  custody and rights limits, and a tool that records later local fixity checks.
+- [x] State that Witness is not the source's archival institution or record of
+  record and does not claim OAIS, PREMIS, BagIt, WARC, ISO 16363, or trusted
+  repository conformance.
+- [ ] Define archival object, event, agent, rights, package, preservation-master,
+  access-derivative, and extraction-derivative mappings using PREMIS and OAIS
+  concepts rather than embedding custody captions in observation payloads.
+- [ ] Define intake, fixity check, fixity failure, relocation, migration,
+  restriction, closure, deaccession, transfer, and destruction as events against
+  stored objects, with authority and outcome.
+- [ ] Select and validate a portable package format for multi-file intake,
+  including an explicit BagIt assessment and a WARC assessment for HTTP
+  retrievals; do not claim either until conformance fixtures exist.
+- [ ] Define appraisal and retention policies per collection or series,
+  including non-ingest, embargo, lawful restricted master, access derivative,
+  return, transfer, deaccession, and documented destruction.
+- [ ] Add recurring fixity checks, replicated storage, off-database event
+  evidence, format-risk monitoring, migration planning, and restoration tests.
+- [ ] Define designated communities and representation-information requirements
+  for each evidence profile instead of claiming the entire world as one audience.
 
 ## Phase 1 — Make the record internally trustworthy
 

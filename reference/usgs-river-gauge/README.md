@@ -33,9 +33,12 @@ referenced by a manifest.
 | `snapshot/response-headers.json` | Final HTTP response headers normalized into JSON |
 | `snapshot/manifest.json` | Request, retrieval, status, sizes, digests, and explicit limits |
 | `snapshot/extracted-point.json` | Versioned extraction result; explicitly not a conforming observation |
+| `snapshot/package-profile.json` | Object roles, representation information, designated community, custody limits, and rights status |
+| `snapshot/preservation-events.json` | Recorded intake and later fixity-check events against stored artifacts |
 | `tools/retrieve.py` | Retriever `0.1.0`; writes a new source-artifact bundle |
 | `tools/extract.py` | Extractor `0.1.0`; selects one timestamp and preserves value text and qualifiers |
 | `tools/verify.py` | Independent local digest and extraction verifier |
+| `tools/record_fixity_check.py` | Appends a dated local fixity-check event and updates its manifest entry |
 
 ## Verify the committed bundle
 
@@ -68,6 +71,8 @@ python3 reference/usgs-river-gauge/tools/retrieve.py \
   --output /tmp/witness-usgs-retrieval
 python3 reference/usgs-river-gauge/tools/extract.py \
   --bundle /tmp/witness-usgs-retrieval
+python3 reference/usgs-river-gauge/tools/record_fixity_check.py \
+  --bundle /tmp/witness-usgs-retrieval
 python3 reference/usgs-river-gauge/tools/verify.py \
   --bundle /tmp/witness-usgs-retrieval
 ```
@@ -75,6 +80,21 @@ python3 reference/usgs-river-gauge/tools/verify.py \
 The default request is deliberately fixed in `retrieve.py` for reviewability.
 A future version should accept a constrained request specification while
 canonicalizing and validating every parameter.
+
+## Preservation-package boundary
+
+The snapshot is now a small, reviewable multi-object package: exact response
+bytes as the preservation master, normalized headers as retrieval metadata, an
+extraction derivative, an explicit package profile, recorded preservation
+events, and a manifest covering every object. It distinguishes the source's
+custody from Witness's custody of this demonstration copy and states that
+Witness is not USGS's archival institution of record.
+
+This structure is informed by archival review but does not claim OAIS, PREMIS,
+BagIt, WARC, ISO 16363, or trusted digital repository conformance. The package
+still lacks independent custody, replicated storage, retention policy, format
+migration planning, deaccession machinery, and recurring automated fixity
+checks.
 
 ## Exact extraction demonstrated
 

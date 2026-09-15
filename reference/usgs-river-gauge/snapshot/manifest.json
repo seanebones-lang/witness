@@ -4,6 +4,14 @@
       "bytes": 1885,
       "sha256": "74433bf0bc5941a93136cb562ee6d1a114b37375efde0e0dfe620912483474f1"
     },
+    "package-profile.json": {
+      "bytes": 1750,
+      "sha256": "9a06ff0f95bfa015487dd0c3a571e93273c04369daaf55cf8dcb33d2be0d4c9f"
+    },
+    "preservation-events.json": {
+      "bytes": 2577,
+      "sha256": "45400fa9937acd07bb60f7f053e4628275b345614ed4078e029327822a7d2ada"
+    },
     "response-headers.json": {
       "bytes": 459,
       "sha256": "263eaae72fce310751396dbe2dea3d204f04bc08288891fa77293465b29650e7"

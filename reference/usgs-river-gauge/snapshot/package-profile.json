@@ -1,0 +1,43 @@
+{
+  "custody_and_authority": {
+    "source_custody_transfer_claimed": false,
+    "source_endorsement_claimed": false,
+    "witness_role": "Maintainer of this curated demonstration copy, not archival institution of record for USGS",
+    "witness_signature_from_source_present": false
+  },
+  "designated_community": "Witness protocol contributors evaluating source preservation and transformation semantics",
+  "objects": [
+    {
+      "path": "response.json",
+      "role": "preservation-master-as-received",
+      "representation_information": {
+        "format": "JSON",
+        "media_type": "application/json",
+        "source_schema_or_vocabulary": "USGS WaterML 1.1 JSON response as identified inside the preserved response"
+      }
+    },
+    {
+      "path": "response-headers.json",
+      "role": "normalized-retrieval-metadata",
+      "representation_information": {
+        "format": "JSON",
+        "normalization": "HTTP response header names lowercased and serialized as sorted, indented UTF-8 JSON"
+      }
+    },
+    {
+      "path": "extracted-point.json",
+      "role": "derivative-extraction",
+      "representation_information": {
+        "format": "JSON",
+        "transformation": "witness-usgs-extractor/0.1.0"
+      }
+    }
+  ],
+  "rights_and_terms": {
+    "determination_status": "not-independently-adjudicated",
+    "note": "The response came from a U.S. government service. This package makes no blanket rights determination for every field or upstream contribution and records no custody transfer or endorsement.",
+    "source_policy_review_required_before_expansion": true
+  },
+  "schema": "witness-curated-preservation-package/0.1",
+  "status": "curated-demo-not-oais-premis-bagit-warc-or-trusted-repository-conformance"
+}
