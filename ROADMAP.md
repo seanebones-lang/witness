@@ -149,6 +149,9 @@ not approved for high-consequence or public production use.
 - [x] Require conflict-of-interest disclosure for maintainers and reviewers.
 - [x] Define how minority reports and dissenting technical judgments are
   preserved.
+- [x] Define distinct contribution paths for short review notes, change
+  proposals, and affected-person concerns; require public decision records for
+  material refusals.
 - [x] Define how compatible governance forks can remain interoperable without
   hiding differences.
 - [x] Limit emergency powers and require their actions and expiration to be

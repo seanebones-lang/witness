@@ -44,6 +44,11 @@ Contributions are accepted under the
 [Mozilla Public License 2.0](LICENSE). By submitting a contribution, you agree
 to license it under those terms.
 
+Opening an issue, filing a review, submitting a pull request, or appearing in
+an acknowledgement is **not** an endorsement of Witness, its constitution, a
+deployment, or another contributor's view. A contributor remains responsible
+for the accuracy and permissions of material they submit.
+
 ## Ways to help now
 
 Good early contributions include:
@@ -63,10 +68,27 @@ Good early contributions include:
 Do not add real personal data, confidential records, private keys, or sensitive
 evidence to an issue, test, fixture, commit, or pull request.
 
-## Propose the problem first
+## Two ways to contribute
+
+### Review note
+
+A review note is a short, scoped objection, failure case, standard, or safer
+approach. It is the right route for the 20-minute review questions in the
+[Expert Review Guide](docs/EXPERT-REVIEW.md), including feedback from people
+who do not write code. State your perspective, the limits of the review, one
+concrete example, and the objection or question. A review note does not need to
+propose a patch or complete the change-proposal fields below.
+
+Use a public issue or a matching scoped issue when it is safe to do so. For a
+material domain, privacy, or security objection, maintainers must either link a
+decision record when closing it or preserve it as unresolved. Sensitive safety,
+privacy, or vulnerability material belongs in the private routes described in
+[SECURITY.md](SECURITY.md), not a public issue.
+
+### Change proposal
 
 Open an issue before a large feature, schema change, cryptographic change, new
-dependency, or architectural rewrite. A strong proposal includes:
+dependency, or architectural rewrite. A change proposal includes:
 
 - **Problem:** What can fail today?
 - **Affected people:** Who benefits, bears risk, or must be consulted?
@@ -83,7 +105,36 @@ dependency, or architectural rewrite. A strong proposal includes:
 
 For domain-specific work, include a reviewer with relevant experience whenever
 possible. Code review alone cannot validate a medical, legal, scientific,
-journalistic, archival, or human-rights workflow.
+journalistic, archival, or human-rights workflow. Witness is currently a
+founder-maintained prototype: requested domain review is not a quorum, and an
+absent reviewer is recorded as **unreviewed**, never treated as approval.
+
+## Disagreement, affected people, and decision records
+
+The current maintainer has merge and final decision authority. That authority
+does not make a rejection disappear. A refusal of a material domain, privacy,
+or security objection must use the [decision-record template](.github/DECISION_RECORD_TEMPLATE.md)
+and link the objection, rejected alternative, relevant constitutional article,
+date, and any dissent.
+
+Minority reports live in [docs/minority-reports](docs/minority-reports/README.md).
+They are linked from the associated decision record and may remain unresolved.
+They are not closed as “not planned” without that pointer.
+
+If a deployment, record, or rule describes or affects you, you may open an
+affected-person concern using the dedicated issue form. It does not require a
+technical proposal. Do not post personal, confidential, or safety-sensitive
+facts publicly; use the private contact route on the maintainer profile when
+public disclosure could cause harm.
+
+## Generative-tool disclosure
+
+Disclose material use of generative tools in a pull request, review note, or
+decision record. Identify what was generated or materially transformed and
+what human checked it. The human submitter remains responsible for correctness,
+permissions, and the claim. Generated prose or patches do not become Observed
+project policy merely by being merged; the repository's dated decision records
+and code remain the project record.
 
 ## Development setup
 

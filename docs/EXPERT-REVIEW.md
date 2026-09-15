@@ -82,6 +82,12 @@ Please identify your perspective and the limits of your review. Pseudonymous
 feedback is welcome. Do not submit personal data, confidential evidence,
 credentials, private keys, or records that could endanger someone.
 
+A review note does not need a patch or a ten-part change proposal. It may answer
+one question with a perspective, limits, concrete example, and objection. See
+[CONTRIBUTING.md](../CONTRIBUTING.md#two-ways-to-contribute). Filing a review is
+not an endorsement, and material generative-tool use must be disclosed with a
+human author accountable for the submission.
+
 ## What happens to feedback
 
 Feedback may lead to a documented decision, roadmap item, test, evidence-profile

@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Affected-person concern
+    url: https://github.com/seanebones-lang/witness/issues/new?template=affected-person-concern.yml
+    about: Raise a nontechnical concern about a rule, deployment, or record that affects you.
   - name: Private security report
     url: https://github.com/seanebones-lang/witness/security/advisories/new
     about: Report vulnerabilities or sensitive security concerns privately.

@@ -357,6 +357,11 @@ questions for science, archives, journalism, security, privacy, standards,
 accessibility, human rights, governance, AI evaluation, and engineering. A
 review is a request for criticism, not endorsement.
 
+Short review notes, full change proposals, and nontechnical affected-person
+concerns have distinct routes in [CONTRIBUTING.md](CONTRIBUTING.md). Witness is
+currently maintained by one decision maker; a review request is not a quorum,
+and unreviewed work is not presented as approved.
+
 Start with [CONTRIBUTING.md](CONTRIBUTING.md), then choose an item from
 [ROADMAP.md](ROADMAP.md). Small, clearly scoped contributions are welcome.
 

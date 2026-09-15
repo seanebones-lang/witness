@@ -1,0 +1,35 @@
+name: Affected-person concern
+description: Raise a concern about a rule, deployment, or record that describes or affects you.
+title: ""
+labels: ["affected-person-concern"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You do not need to write a technical proposal. Do not post personal data, confidential material, credentials, or facts whose publication could endanger you or someone else. Use the private contact route on the maintainer profile for sensitive concerns.
+  - type: textarea
+    id: concern
+    attributes:
+      label: Concern
+      description: What rule, deployment, record type, or project behavior is causing concern?
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact or risk
+      description: What harm, exclusion, or loss of control could result? Keep this safe for public posting.
+    validations:
+      required: true
+  - type: textarea
+    id: requested_response
+    attributes:
+      label: Requested response
+      description: What would a useful response, safeguard, or clarification look like?
+  - type: dropdown
+    id: public_followup
+    attributes:
+      label: Is a public response safe?
+      options:
+        - Yes, a public response is safe.
+        - No, please use the private contact route.
