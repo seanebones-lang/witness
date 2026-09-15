@@ -270,6 +270,16 @@ Contributions and design decisions should reinforce these principles:
 
 The first source-preserving demonstration is the [USGS river-gauge reference](reference/usgs-river-gauge/README.md). It commits exact response bytes, retrieval metadata, SHA-256 digests, a versioned extraction, and an independent verifier. The extracted point is deliberately marked as **not yet a conforming observation** because the current measurement model cannot preserve all required source semantics.
 
+## Standards direction
+
+Witness intends to define Observed, Inferred, and Generated as a small epistemic
+extension over established standards rather than replace provenance,
+measurement, unit, fixity, identity, or media-authenticity vocabularies. The
+current prototype has no published crosswalk or conformance fixtures and must
+not claim compatibility yet. Standards compatibility, when demonstrated, will
+describe structure and interoperability; it will not establish that a record is
+true. See the [standards boundary](docs/STANDARDS-BOUNDARY.md).
+
 ## Current limitations
 
 The prototype currently lacks several controls required for public or

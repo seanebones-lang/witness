@@ -196,6 +196,26 @@ invariants can change, and how to report harm or vulnerabilities.
   `no-personal-data-expected`, `personal-data-present`, `consent-documented`,
   `consent-withdrawn`, `sealed`, and `unsafe-to-publish` without producing a
   composite trust score.
+- [x] Adopt a standards-first design direction: Witness epistemic types extend
+  existing provenance and domain vocabularies rather than replacing them.
+- [ ] Publish a reviewed concept-level crosswalk covering W3C PROV/PROV-O,
+  JSON-LD, RFC 8785 JCS or deterministic CBOR, ISO 19156 O&M and WaterML,
+  UCUM/QUDT, PREMIS, C2PA, and Verifiable Credentials, including explicit
+  semantic mismatches and out-of-scope uses.
+- [ ] Select one canonical hash-and-sign preimage standard and publish
+  cross-language test vectors before claiming portable CIDs or signatures.
+- [ ] Replace the generic `supports` relationship at interchange boundaries
+  with a small, closed set of PROV-aligned edge types for use, derivation,
+  attribution, revision, and invalidation.
+- [ ] Publish a stable JSON-LD context in which `witness:epistemicType` and the
+  prospective `witness:falsifier` are narrow extensions on PROV entities and
+  activities; specify how graph IDs and content IDs differ.
+- [ ] Produce an instrument-profile fixture using O&M/WaterML concepts and
+  UCUM or QUDT units that a standards-aware consumer can read without
+  Witness-specific code except for the documented Witness extensions.
+- [ ] Limit C2PA mappings to media assets for which C2PA is applicable, and use
+  Verifiable Credentials only for attested identity claims when a real issuer
+  exists.
 
 ## Phase 1 — Make the record internally trustworthy
 
