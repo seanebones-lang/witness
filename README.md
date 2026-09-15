@@ -294,12 +294,22 @@ journalists, scientists, security engineers, designers, accessibility experts,
 privacy practitioners, community organizers, translators, and people with lived
 experience can all identify assumptions the system would otherwise miss.
 
+**Expert reviewers are needed now.** The
+[20-minute Expert Review Guide](docs/EXPERT-REVIEW.md) identifies concrete
+questions for science, archives, journalism, security, privacy, standards,
+accessibility, human rights, governance, AI evaluation, and engineering. A
+review is a request for criticism, not endorsement.
+
 Start with [CONTRIBUTING.md](CONTRIBUTING.md), then choose an item from
 [ROADMAP.md](ROADMAP.md). Small, clearly scoped contributions are welcome.
 
 The rules underneath the implementation live in the
 [Epistemic Constitution](docs/EPISTEMIC-CONSTITUTION.md). Project authority and
 decision procedures are described in [GOVERNANCE.md](GOVERNANCE.md).
+
+The dated [funding-readiness plan](docs/FUNDING-READINESS-2026-09.md) separates
+possible grant paths from current eligibility and evidence gaps. Witness has not
+applied for or received funding.
 
 Please open an issue before undertaking a large architectural change. Describe
 the problem, affected communities, proposed guarantee, limits of that guarantee,

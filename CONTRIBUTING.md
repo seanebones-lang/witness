@@ -36,6 +36,10 @@ Read:
 5. [GOVERNANCE.md](GOVERNANCE.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 6. Existing issues and pull requests to avoid duplicating active work.
 
+If you are reviewing from a domain outside software engineering, start with the
+[Expert Review Guide](docs/EXPERT-REVIEW.md). It offers a 20-minute path and
+specific questions; you do not need to review the entire repository.
+
 Contributions are accepted under the
 [Mozilla Public License 2.0](LICENSE). By submitting a contribution, you agree
 to license it under those terms.

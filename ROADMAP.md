@@ -159,6 +159,18 @@ not approved for high-consequence or public production use.
 not promise, how decisions are made, where power is concentrated, how the core
 invariants can change, and how to report harm or vulnerabilities.
 
+### Current participation and funding gate
+
+- [x] Publish a short expert-review path for technical and nontechnical
+  contributors.
+- [x] Document current funding routes, eligibility limits, and evidence gaps.
+- [ ] Complete at least three independent reviews across distinct disciplines.
+- [ ] Record project responses, including unresolved objections and minority
+  reports.
+- [ ] Secure one willing partner for a small, public, reversible pilot.
+- [ ] Obtain a green hosted CI run after the GitHub account billing lock is
+  resolved.
+
 ## Phase 1 — Make the record internally trustworthy
 
 **Goal:** Eliminate silent corruption, ambiguous identifiers, and mutable
