@@ -34,8 +34,10 @@ JSONL content identifiers and existing signatures and checks inference premises
 (`core/src/ingestion.rs:48-112`). Storage persists nodes, graph edges, and
 narrative diffs (`core/src/storage.rs:15-253`).
 
-The prototype is intended for local development. Direct public-internet exposure
-and high-consequence use are unsupported.
+The prototype is intended for local development and binds to `127.0.0.1` by
+default. A non-loopback `HOST` override does not add authentication,
+authorization, rate limits, transport security, or production support. Direct
+network exposure and high-consequence use are unsupported.
 
 ## Threat model and trust boundaries
 

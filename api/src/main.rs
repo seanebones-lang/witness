@@ -447,7 +447,7 @@ impl From<witness_core::types::QueryFilter> for GQLQueryFilter {
     }
 }
 
-pub async fn run_server(database_url: &str, port: u16) -> CoreResult<()> {
+pub async fn run_server(database_url: &str, host: &str, port: u16) -> CoreResult<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("info,witness=debug"))
         .with(tracing_subscriber::fmt::layer().json())
@@ -479,8 +479,14 @@ pub async fn run_server(database_url: &str, port: u16) -> CoreResult<()> {
         .route("/", get(serve_dashboard))
         .with_state(state);
 
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
-    tracing::info!("Witness API listening on http://0.0.0.0:{}", port);
+    if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+        tracing::warn!(
+            host,
+            "Witness has unauthenticated mutation endpoints and is not safe for network exposure"
+        );
+    }
+    let listener = TcpListener::bind(format!("{}:{}", host, port)).await?;
+    tracing::info!("Witness API listening on http://{}:{}", host, port);
     axum::serve(listener, app).await?;
 
     Ok(())
@@ -779,6 +785,7 @@ async fn main() -> witness_core::Result<()> {
         .unwrap_or_else(|_| "8080".to_string())
         .parse()
         .unwrap_or(8080);
+    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 
-    run_server(&database_url, port).await
+    run_server(&database_url, &host, port).await
 }

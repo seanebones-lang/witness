@@ -176,11 +176,17 @@ Then open:
 - Health check: <http://localhost:8080/health>
 - REST records: <http://localhost:8080/api/nodes>
 
-Set `DATABASE_URL` and `PORT` to override the defaults:
+The server binds to `127.0.0.1` by default. It has an unauthenticated GraphQL
+mutation and must not be placed on a network. Set `DATABASE_URL` and `PORT` to
+override their defaults:
 
 ```bash
 DATABASE_URL=sqlite://./witness.db PORT=8080 cargo run --package witness-api
 ```
+
+`HOST` exists for controlled development only. Setting it to a non-loopback
+address produces a warning and does not add authentication, authorization, rate
+limits, transport security, or production support.
 
 ### Sign an observation
 

@@ -236,6 +236,25 @@ invariants can change, and how to report harm or vulnerabilities.
   publication cannot be presented as corroboration.
 - [ ] Make Generated newsroom material programmatically and visually distinct
   from source artifacts, with accessible text labels that do not rely on color.
+- [x] Bind the unauthenticated API to loopback by default and warn when an
+  operator explicitly selects a non-loopback address.
+- [x] Remove the dashboard's green signature cue; label signature data as
+  present but unverified by the view, keep truth limits adjacent, and state that
+  parent count is not corroboration.
+- [ ] Define separate `artifact_cid` and `record_cid` contracts and require every
+  signature to identify its exact standardized preimage.
+- [ ] Add key creation, claimed binding, rotation, revocation, expiry, recovery,
+  and compromise records without rewriting signed history.
+- [ ] Verify type, record CID, signature, and applicable profile requirements on
+  every read; quarantine failures and expose an explicit invalid state.
+- [ ] Publish signed checkpoints over node IDs and record CIDs outside the
+  mutable SQLite file, with deletion, rewrite, and fork detection tests.
+- [ ] Build an independent verifier in a separate implementation that checks
+  bytes, digests, signatures, parent existence, and profile-required fields
+  without rendering or awarding a score.
+- [ ] Define release-integrity evidence including pinned CI actions, signed tags
+  or artifacts, and a reproducible build recipe before distributing a verifier
+  as trusted software.
 
 ## Phase 1 — Make the record internally trustworthy
 
