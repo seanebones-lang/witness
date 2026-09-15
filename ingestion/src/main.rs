@@ -15,6 +15,10 @@ struct Cli {
     #[arg(long, env = "WITNESS_KEY")]
     key_file: Option<String>,
 
+    /// Dataset provenance label, such as demo-fixture or curated-demo
+    #[arg(long, global = true)]
+    dataset_status: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -36,6 +40,8 @@ enum Commands {
         #[arg(long)]
         station_id: Option<String>,
         #[arg(long)]
+        measured_at: Option<chrono::DateTime<Utc>>,
+        #[arg(long)]
         instrument_id: String,
         #[arg(long)]
         author_id: String,
@@ -43,6 +49,8 @@ enum Commands {
         author_name: Option<String>,
         #[arg(long)]
         domain: Option<String>,
+        #[arg(long)]
+        source_uri: Option<String>,
         #[arg(long)]
         labels: Vec<String>,
     },
@@ -124,6 +132,7 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    let dataset_status = cli.dataset_status.clone();
 
     let storage = Arc::new(Storage::new(&cli.database).await?);
     let keypair = if let Some(path) = cli.key_file {
@@ -160,10 +169,12 @@ async fn main() -> Result<()> {
             latitude,
             longitude,
             station_id,
+            measured_at,
             instrument_id,
             author_id,
             author_name,
             domain,
+            source_uri,
             labels,
         } => {
             let author = Author {
@@ -192,7 +203,7 @@ async fn main() -> Result<()> {
                     description: None,
                     altitude_m: None,
                 },
-                measured_at: Utc::now(),
+                measured_at: measured_at.unwrap_or_else(Utc::now),
                 instrument: InstrumentRef {
                     id: instrument_id,
                     name: None,
@@ -204,7 +215,14 @@ async fn main() -> Result<()> {
             };
 
             let node = service
-                .ingest_observation(measurement, author, labels, domain, None, keypair.as_ref())
+                .ingest_observation(
+                    measurement,
+                    author,
+                    labels_with_status(labels, &dataset_status),
+                    domain,
+                    source_uri,
+                    keypair.as_ref(),
+                )
                 .await?;
             println!("Ingested observation: {}", node.id);
         }
@@ -287,7 +305,14 @@ async fn main() -> Result<()> {
             };
 
             let node = service
-                .ingest_inference(derivation, author, labels, domain, None, keypair.as_ref())
+                .ingest_inference(
+                    derivation,
+                    author,
+                    labels_with_status(labels, &dataset_status),
+                    domain,
+                    None,
+                    keypair.as_ref(),
+                )
                 .await?;
             println!("Ingested inference: {}", node.id);
         }
@@ -336,7 +361,14 @@ async fn main() -> Result<()> {
             };
 
             let node = service
-                .ingest_generation(generation, author, labels, domain, None, keypair.as_ref())
+                .ingest_generation(
+                    generation,
+                    author,
+                    labels_with_status(labels, &dataset_status),
+                    domain,
+                    None,
+                    keypair.as_ref(),
+                )
                 .await?;
             println!("Ingested generation: {}", node.id);
         }
@@ -350,4 +382,13 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn labels_with_status(mut labels: Vec<String>, status: &Option<String>) -> Vec<String> {
+    if let Some(status) = status
+        && !labels.contains(status)
+    {
+        labels.push(status.clone());
+    }
+    labels
 }

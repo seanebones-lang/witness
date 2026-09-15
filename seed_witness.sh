@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Seed witness with realistic sample data across all three epistemic categories
+# Seed Witness with signed demonstration fixtures across all three epistemic categories.
+# These records are illustrative and were not fetched from the named institutions.
 
 set -euo pipefail
+
+trap 'rm -f /tmp/witness-seed.key' EXIT
 
 INGEST="cargo run --quiet --package witness-ingestion --"
 
 echo "=== Seeding Witness database ==="
 
 # Generate keypair for signing
-KEY_OUTPUT=$($INGEST gen-key --output /tmp/seed.key 2>&1 | tail -1)
+echo "WARNING: demonstration fixtures only; not independently verified evidence"
+KEY_OUTPUT=$($INGEST gen-key --output /tmp/witness-seed.key 2>&1 | tail -1)
 echo "Key: $KEY_OUTPUT"
+SIGNED_INGEST="$INGEST --key-file /tmp/witness-seed.key --dataset-status demo-fixture"
 
 # ============================================================
 # OBSERVED: Real-world measurements
@@ -17,7 +22,7 @@ echo "Key: $KEY_OUTPUT"
 
 echo "--- Ingesting OBSERVED data ---"
 
-TEMP_SFO=$($INGEST observe \
+TEMP_SFO=$($SIGNED_INGEST observe \
   --quantity "air_temperature" \
   --value "23.4" \
   --unit "celsius" \
@@ -26,14 +31,13 @@ TEMP_SFO=$($INGEST observe \
   --author-name "National Weather Service" \
   --domain "weather" \
   --labels "surface" \
-  --labels "official" \
   --labels "recent" \
   --latitude 37.619 \
   --longitude 122.375 \
   --station-id "KSFO" 2>&1 | grep "Ingested observation" | awk '{print $NF}')
 echo "  KSFO temp: $TEMP_SFO"
 
-TEMP_JFK=$($INGEST observe \
+TEMP_JFK=$($SIGNED_INGEST observe \
   --quantity "air_temperature" \
   --value "21.8" \
   --unit "celsius" \
@@ -42,14 +46,13 @@ TEMP_JFK=$($INGEST observe \
   --author-name "National Weather Service" \
   --domain "weather" \
   --labels "surface" \
-  --labels "official" \
   --labels "recent" \
   --latitude 40.641 \
   --longitude 73.778 \
   --station-id "KJFK" 2>&1 | grep "Ingested observation" | awk '{print $NF}')
 echo "  KJFK temp: $TEMP_JFK"
 
-TEMP_MIA=$($INGEST observe \
+TEMP_MIA=$($SIGNED_INGEST observe \
   --quantity "air_temperature" \
   --value "28.2" \
   --unit "celsius" \
@@ -58,7 +61,6 @@ TEMP_MIA=$($INGEST observe \
   --author-name "National Weather Service" \
   --domain "weather" \
   --labels "surface" \
-  --labels "official" \
   --labels "recent" \
   --latitude 25.793 \
   --longitude 80.291 \
@@ -66,7 +68,7 @@ TEMP_MIA=$($INGEST observe \
 echo "  KMIA temp: $TEMP_MIA"
 
 # CO2 measurements (Mauna Loa - historical and recent)
-CO2_RECENT=$($INGEST observe \
+CO2_RECENT=$($SIGNED_INGEST observe \
   --quantity "atmospheric_co2" \
   --value "421.5" \
   --unit "ppm" \
@@ -75,14 +77,13 @@ CO2_RECENT=$($INGEST observe \
   --author-name "Global Monitoring Laboratory" \
   --domain "climate" \
   --labels "keeling-curve" \
-  --labels "official" \
   --labels "recent" \
   --latitude 19.539 \
   --longitude 155.579 \
   --station-id "MLO" 2>&1 | grep "Ingested observation" | awk '{print $NF}')
 echo "  MLO CO2 recent: $CO2_RECENT"
 
-CO2_HIST=$($INGEST observe \
+CO2_HIST=$($SIGNED_INGEST observe \
   --quantity "atmospheric_co2" \
   --value "419.8" \
   --unit "ppm" \
@@ -91,14 +92,13 @@ CO2_HIST=$($INGEST observe \
   --author-name "Global Monitoring Laboratory" \
   --domain "climate" \
   --labels "keeling-curve" \
-  --labels "official" \
   --labels "historical" \
   --latitude 19.539 \
   --longitude 155.579 \
   --station-id "MLO" 2>&1 | grep "Ingested observation" | awk '{print $NF}')
 echo "  MLO CO2 historical: $CO2_HIST"
 
-CO2_1958=$($INGEST observe \
+CO2_1958=$($SIGNED_INGEST observe \
   --quantity "atmospheric_co2" \
   --value "315.2" \
   --unit "ppm" \
@@ -115,7 +115,7 @@ CO2_1958=$($INGEST observe \
 echo "  MLO CO2 1958: $CO2_1958"
 
 # River gauge data (USGS)
-STREAM_RECENT=$($INGEST observe \
+STREAM_RECENT=$($SIGNED_INGEST observe \
   --quantity "streamflow" \
   --value "12400" \
   --unit "cfs" \
@@ -124,14 +124,13 @@ STREAM_RECENT=$($INGEST observe \
   --author-name "US Geological Survey" \
   --domain "hydrology" \
   --labels "surface-water" \
-  --labels "official" \
   --labels "recent" \
   --latitude 36.099 \
   --longitude 112.096 \
   --station-id "09380000" 2>&1 | grep "Ingested observation" | awk '{print $NF}')
 echo "  Colorado River recent: $STREAM_RECENT"
 
-STREAM_HIST=$($INGEST observe \
+STREAM_HIST=$($SIGNED_INGEST observe \
   --quantity "streamflow" \
   --value "8920" \
   --unit "cfs" \
@@ -140,7 +139,6 @@ STREAM_HIST=$($INGEST observe \
   --author-name "US Geological Survey" \
   --domain "hydrology" \
   --labels "surface-water" \
-  --labels "official" \
   --labels "historical" \
   --latitude 36.099 \
   --longitude 112.096 \
@@ -148,7 +146,7 @@ STREAM_HIST=$($INGEST observe \
 echo "  Colorado River historical: $STREAM_HIST"
 
 # Seismic data (USGS)
-QUAKE=$($INGEST observe \
+QUAKE=$($SIGNED_INGEST observe \
   --quantity "earthquake_magnitude" \
   --value "4.2" \
   --unit "Mw" \
@@ -157,7 +155,6 @@ QUAKE=$($INGEST observe \
   --author-name "National Earthquake Information Center" \
   --domain "seismology" \
   --labels "tectonic" \
-  --labels "official" \
   --labels "recent" \
   --latitude 39.163 \
   --longitude 119.767 \
@@ -165,7 +162,7 @@ QUAKE=$($INGEST observe \
 echo "  Reno quake: $QUAKE"
 
 # Satellite radiance (CERES)
-SAT=$($INGEST observe \
+SAT=$($SIGNED_INGEST observe \
   --quantity "toa_radiance" \
   --value "239.4" \
   --unit "W/m2" \
@@ -182,7 +179,7 @@ SAT=$($INGEST observe \
 echo "  CERES radiance: $SAT"
 
 # Hospital census
-HOSP=$($INGEST observe \
+HOSP=$($SIGNED_INGEST observe \
   --quantity "hospital_bed_occupancy" \
   --value "847" \
   --unit "beds" \
@@ -205,7 +202,7 @@ echo "  DC hospital: $HOSP"
 echo "--- Ingesting INFERRED data ---"
 
 # Climate inference from CO2 observations
-$INGEST infer \
+$SIGNED_INGEST infer \
   --claim "Global mean surface temperature has risen 1.1°C since pre-industrial" \
   --methodology "Optimal fingerprinting detection/attribution using CMIP6 ensemble" \
   --premise "$CO2_RECENT" \
@@ -219,7 +216,7 @@ $INGEST infer \
   --labels "policy-relevant" 2>&1 | grep "Ingested inference" | awk '{print $NF}'
 
 # Streamflow trend inference
-$INGEST infer \
+$SIGNED_INGEST infer \
   --claim "Colorado River at Lees Ferry shows 20% decline in annual flow since 2000" \
   --methodology "Mann-Kendall trend test on USGS daily discharge records (2000-2024)" \
   --premise "$STREAM_RECENT" \
@@ -232,7 +229,7 @@ $INGEST infer \
   --labels "policy-relevant" 2>&1 | grep "Ingested inference" | awk '{print $NF}'
 
 # Temperature anomaly inference
-$INGEST infer \
+$SIGNED_INGEST infer \
   --claim "San Francisco Bay Area July 2024 average temperature 1.8°C above 1991-2020 normal" \
   --methodology "Anomaly calculation vs NOAA NCEI 1991-2020 climate normals" \
   --premise "$TEMP_SFO" \
@@ -244,7 +241,7 @@ $INGEST infer \
   --labels "recent" 2>&1 | grep "Ingested inference" | awk '{print $NF}'
 
 # Hospital capacity inference
-$INGEST infer \
+$SIGNED_INGEST infer \
   --claim "DC metro area ICU capacity at 92% — surge protocols activated" \
   --methodology "Threshold exceedance: >90% ICU occupancy triggers HHS Tier 2 surge" \
   --premise "$HOSP" \
@@ -256,7 +253,7 @@ $INGEST infer \
   --labels "actionable" 2>&1 | grep "Ingested inference" | awk '{print $NF}'
 
 # Seismic hazard inference
-$INGEST infer \
+$SIGNED_INGEST infer \
   --claim "M4.2 Reno sequence has 12% probability of M5+ within 7 days (UCERF3-ETAS)" \
   --methodology "Epidemic-Type Aftershock Sequence model calibrated to Nevada seismic catalog" \
   --premise "$QUAKE" \
@@ -274,7 +271,7 @@ $INGEST infer \
 echo "--- Ingesting GENERATED data ---"
 
 # Climate model ensemble output
-$INGEST generate \
+$SIGNED_INGEST generate \
   --content "SSP2-4.5 ensemble projects 2.7°C warming by 2100 (5-95%: 2.1-3.5°C)" \
   --generator "CMIP6" \
   --model "ensemble-mean" \
@@ -287,7 +284,7 @@ $INGEST generate \
   --labels "model-ensemble" 2>&1 | grep "Ingested generation" | awk '{print $NF}'
 
 # Weather forecast (GFS)
-$INGEST generate \
+$SIGNED_INGEST generate \
   --content "GFS 00z run: KSFO 2m temp 22.1°C at 2024-09-15 18:00Z" \
   --generator "GFS" \
   --model "v16.2" \
@@ -300,7 +297,7 @@ $INGEST generate \
   --labels "00z-run" 2>&1 | grep "Ingested generation" | awk '{print $NF}'
 
 # Synthetic population dataset
-$INGEST generate \
+$SIGNED_INGEST generate \
   --content "Census tract 06075012300 synthetic population: 4,231 persons, 1,847 households" \
   --generator "IPF-Synthesizer" \
   --model "v3.1" \
@@ -312,7 +309,7 @@ $INGEST generate \
   --labels "generated" 2>&1 | grep "Ingested generation" | awk '{print $NF}'
 
 # LLM-generated summary (explicitly labeled generated)
-$INGEST generate \
+$SIGNED_INGEST generate \
   --content "Summary: Colorado River basin faces structural deficit of 1.2 MAF/yr under current allocations" \
   --generator "GPT-4o" \
   --prompt "Synthesize USBR 2024 CRSS results with tribal water rights" \

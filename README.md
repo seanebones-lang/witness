@@ -57,13 +57,18 @@ Witness currently includes:
 - SHA-256 content identifiers for payloads.
 - Optional Ed25519 signatures and signature verification.
 - SQLite storage and migrations.
+- Append-only node insertion: an existing node ID cannot be silently replaced.
 - A command-line ingestion tool for individual observations, CSV, JSONL,
   inferences, and generated material.
+- CLI support for preserving an observation's measurement time, source URI,
+  signing key, and dataset-status label.
 - REST and GraphQL read APIs.
 - A GraphQL mutation for storing observations.
 - A local browser dashboard for exploring records by epistemic type, domain,
   author, and label.
 - Initial automated tests for signature verification and payload tampering.
+- Validation that imported JSONL content identifiers and existing signatures
+  match their records, and that inference premises already exist.
 
 The detailed development sequence lives in [ROADMAP.md](ROADMAP.md).
 
@@ -195,7 +200,17 @@ cargo run --package witness-ingestion -- \
 [`seed_witness.sh`](seed_witness.sh) creates a demonstration dataset spanning
 observed, inferred, and generated records. Its values and attributions are
 fixtures for local development. They have not been independently fetched or
-verified and must not be presented as authoritative source records.
+verified and must not be presented as authoritative source records. The script
+signs every record with an ephemeral key, labels every record `demo-fixture`,
+and removes the private key when it exits. This demonstrates integrity without
+implying that the named source institutions signed or endorsed the fixtures.
+
+Run it from the repository root against a disposable database:
+
+```bash
+WITNESS_DB=sqlite://./witness-demo.db ./seed_witness.sh
+DATABASE_URL=sqlite://./witness-demo.db cargo run --package witness-api
+```
 
 ## Data model
 

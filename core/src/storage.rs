@@ -34,50 +34,41 @@ impl Storage {
         let epistemic_type_str = format!("{:?}", node.epistemic_type).to_lowercase();
         let timestamp_str = node.timestamp.to_rfc3339();
 
-        sqlx::query!(
+        let mut transaction = self.pool.begin().await?;
+        sqlx::query(
             r#"
             INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels, signature, domain, source_uri)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                cid = excluded.cid,
-                epistemic_type = excluded.epistemic_type,
-                payload = excluded.payload,
-                author = excluded.author,
-                timestamp = excluded.timestamp,
-                parents = excluded.parents,
-                labels = excluded.labels,
-                signature = excluded.signature,
-                domain = excluded.domain,
-                source_uri = excluded.source_uri
             "#,
-            id_str,
-            cid_str,
-            epistemic_type_str,
-            payload,
-            author,
-            timestamp_str,
-            parents,
-            labels,
-            signature,
-            node.domain,
-            node.source_uri
         )
-        .execute(&*self.pool)
+        .bind(id_str)
+        .bind(cid_str)
+        .bind(epistemic_type_str)
+        .bind(payload)
+        .bind(author)
+        .bind(timestamp_str)
+        .bind(parents)
+        .bind(labels)
+        .bind(signature)
+        .bind(&node.domain)
+        .bind(&node.source_uri)
+        .execute(&mut *transaction)
         .await?;
 
         // Store edges for graph traversal
         for parent_id in &node.parents {
             let from_str = parent_id.to_string();
             let to_str = node.id.to_string();
-            sqlx::query!(
+            sqlx::query(
                 "INSERT OR IGNORE INTO edges (from_id, to_id, edge_type) VALUES (?, ?, 'supports')",
-                from_str,
-                to_str
             )
-            .execute(&*self.pool)
+            .bind(from_str)
+            .bind(to_str)
+            .execute(&mut *transaction)
             .await?;
         }
 
+        transaction.commit().await?;
         Ok(())
     }
 

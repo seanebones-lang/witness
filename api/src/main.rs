@@ -155,8 +155,12 @@ impl QueryRoot {
         after: Option<String>,
     ) -> async_graphql::Result<GQLNodeConnection> {
         let state = ctx.data::<AppState>()?;
-        let limit = first.unwrap_or(50) as i64;
-        let offset = after.as_ref().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let limit = first.unwrap_or(50).clamp(1, 100) as i64;
+        let offset = after
+            .as_ref()
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0)
+            .max(0);
 
         let filter = filter.map(convert_filter).unwrap_or_default();
         let nodes = state
@@ -571,19 +575,21 @@ async fn get_nodes(
     let node_type = params.get("type").map(|s| s.as_str()).unwrap_or("observed");
     let limit = params
         .get("limit")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(20);
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(20)
+        .clamp(1, 100);
     let offset = params
         .get("offset")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0)
+        .max(0);
     let page = offset / limit + 1;
 
     let epistemic_type = match node_type {
         "observed" => EpistemicType::Observed,
         "inferred" => EpistemicType::Inferred,
         "generated" => EpistemicType::Generated,
-        _ => EpistemicType::Observed,
+        _ => return Err(axum::http::StatusCode::BAD_REQUEST),
     };
 
     let mut filter = witness_core::types::QueryFilter {

@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::signing::{SigningKeypair, compute_cid, sign_node};
+use crate::signing::{SigningKeypair, compute_cid, sign_node, verify_cid, verify_node};
 use crate::storage::Storage;
 use crate::types::*;
 use chrono::Utc;
@@ -50,6 +50,13 @@ impl IngestionService {
         source_uri: Option<String>,
         keypair: Option<&SigningKeypair>,
     ) -> Result<ProvenanceNode> {
+        for premise in &derivation.premises {
+            if self.storage.get_node(*premise).await?.is_none() {
+                return Err(crate::WitnessError::Validation(format!(
+                    "inference premise does not exist: {premise}"
+                )));
+            }
+        }
         let node = self.build_inference_node(derivation, author, labels, domain, source_uri)?;
         let keypair = keypair.or(self.default_keypair.as_ref());
         let signed_node = self.sign_and_store(node, keypair).await?;
@@ -91,6 +98,18 @@ impl IngestionService {
                 continue;
             }
             let node: ProvenanceNode = serde_json::from_str(&line)?;
+            if !verify_cid(&node.payload, &node.cid)? {
+                return Err(crate::WitnessError::Validation(format!(
+                    "JSONL line has a CID that does not match its payload: {}",
+                    node.id
+                )));
+            }
+            if node.signature.is_some() && !verify_node(&node)? {
+                return Err(crate::WitnessError::Validation(format!(
+                    "JSONL line has an invalid signature: {}",
+                    node.id
+                )));
+            }
             let signed = self.sign_and_store(node, keypair).await?;
             nodes.push(signed);
         }
@@ -359,5 +378,98 @@ impl Default for ProvenanceNode {
             domain: None,
             source_uri: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    async fn test_service() -> (IngestionService, std::path::PathBuf) {
+        let path = std::env::temp_dir().join(format!("witness-test-{}.db", Uuid::new_v4()));
+        std::fs::File::create(&path).unwrap();
+        let storage = Arc::new(
+            Storage::new(&format!("sqlite://{}", path.display()))
+                .await
+                .unwrap(),
+        );
+        (IngestionService::new(storage), path)
+    }
+
+    fn author() -> Author {
+        Author {
+            id: "instrument:test".to_string(),
+            name: None,
+            author_type: AuthorType::Instrument,
+            metadata: HashMap::new(),
+        }
+    }
+
+    fn measurement() -> Measurement {
+        Measurement {
+            quantity: "temperature".to_string(),
+            value: MeasuredValue {
+                numeric: Some(18.4),
+                text: None,
+                unit: Some("degC".to_string()),
+                categorical: None,
+            },
+            location: Location {
+                latitude: None,
+                longitude: None,
+                station_id: Some("test-station".to_string()),
+                description: None,
+                altitude_m: None,
+            },
+            measured_at: Utc::now(),
+            instrument: InstrumentRef {
+                id: "instrument:test".to_string(),
+                name: None,
+                model: None,
+                calibration_ref: None,
+            },
+            uncertainty: None,
+            chain_of_custody: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn stored_node_cannot_be_overwritten() {
+        let (service, path) = test_service().await;
+        let node = service
+            .ingest_observation(measurement(), author(), vec![], None, None, None)
+            .await
+            .unwrap();
+
+        assert!(service.storage.store_node(&node).await.is_err());
+        drop(service);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn inference_rejects_missing_premise() {
+        let (service, path) = test_service().await;
+        let derivation = Derivation {
+            premises: vec![Uuid::new_v4()],
+            methodology: "test".to_string(),
+            model_ref: None,
+            parameters: HashMap::new(),
+            claim: Claim {
+                statement: "test claim".to_string(),
+                claim_type: ClaimType::Descriptive,
+                scope: ClaimScope::Specific,
+            },
+            falsifiers: vec![],
+            inference_uncertainty: None,
+        };
+
+        let result = service
+            .ingest_inference(derivation, author(), vec![], None, None, None)
+            .await;
+
+        assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+        drop(service);
+        std::fs::remove_file(path).unwrap();
     }
 }

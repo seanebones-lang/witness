@@ -163,8 +163,8 @@ invariants can change, and how to report harm or vulnerabilities.
 history inside one Witness instance.
 
 - [ ] Replace database decoding panics with typed, diagnosable errors.
-- [ ] Enforce append-only node storage; represent corrections as new linked
-  records.
+- [x] Enforce append-only node storage.
+- [ ] Represent corrections as new linked records.
 - [ ] Validate parent existence, edge direction, and epistemic constraints.
 - [ ] Define canonical JSON and produce cross-language compatibility fixtures.
 - [ ] Recompute and verify content identifiers when records enter or leave

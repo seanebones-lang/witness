@@ -52,6 +52,9 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-6" x-data="{ nodes: [], loading: false, totalCount: 0, page: 1, pageSize: 20, selectedNode: null, filter: { domain: '', author: '', label: '' }, domains: [] }">
+        <section class="mb-6 border border-yellow-500/30 bg-yellow-500/5 rounded-xl p-4" aria-label="How to read Witness">
+            <p class="text-sm text-yellow-100"><strong>Read the provenance, not just the label.</strong> “Observed” describes a record’s epistemic category. It does not mean Witness has proven the record true. A signature proves key control and integrity, not identity or accuracy.</p>
+        </section>
         <div class="mb-6 flex flex-wrap gap-4 items-end">
             <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1">Domain</label><select x-model="filter.domain" @change="fetchNodes()" class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"><option value="">All domains</option><template x-for="d in domains" :key="d"><option :value="d" x-text="d"></option></template></select></div>
             <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1">Author</label><input type="text" x-model="filter.author" @input.debounce.300ms="fetchNodes()" placeholder="Filter by author..." class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"></div>
@@ -65,7 +68,7 @@
                     <article class="node-card bg-elevated border border-base rounded-xl p-4 cursor-pointer" @click="openNode(node)">
                         <div class="flex items-start justify-between mb-3"><span :class="'badge px-2 py-0.5 rounded text-xs font-medium font-mono ' + getBadgeClass(node.epistemic_type)" x-text="node.epistemic_type"></span><span class="text-xs text-muted font-mono" x-text="formatDate(node.timestamp)"></span></div>
                         <div class="space-y-2 text-sm"><div class="font-mono text-muted" x-text="truncate(node.id, 8) + '...'"></div><div x-show="node.domain" class="text-muted" x-text="'Domain: ' + node.domain"></div><div x-show="node.author" class="text-muted" x-text="'Author: ' + node.author"></div><div class="flex flex-wrap gap-1" x-show="node.labels.length > 0"><template x-for="label in node.labels.slice(0, 4)" :key="label"><span class="px-1.5 py-0.5 bg-base border border-base rounded text-xs text-muted font-mono" x-text="label"></span></template><span x-show="node.labels.length > 4" class="px-1.5 py-0.5 bg-base border border-base rounded text-xs text-muted">+<span x-text="node.labels.length - 4"></span></span></div></div>
-                        <div class="mt-3 pt-3 border-t border-base flex items-center justify-between text-xs text-muted"><span x-text="node.parents.length + ' parents'"></span><span x-text="getChildrenCount(node.id) + ' children'"></span></div>
+                        <div class="mt-3 pt-3 border-t border-base flex items-center justify-between text-xs text-muted"><span x-text="node.parents.length + ' parents'"></span><span :class="node.signature ? 'text-green-400' : 'text-zinc-500'" x-text="node.signature ? 'signed' : 'unsigned'"></span></div>
                     </article>
                 </template>
             </div>
