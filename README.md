@@ -1,3 +1,7 @@
+<img width="1733" height="907" alt="Codex Image Sep 15, 2026, 12_02_20 PM" src="https://github.com/user-attachments/assets/5fa8453e-56e0-477b-a0c1-243a6a8b81f9" />
+
+
+
 # Witness
 
 **A public skeptic that remembers.**
