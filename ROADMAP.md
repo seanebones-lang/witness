@@ -168,6 +168,17 @@ invariants can change, and how to report harm or vulnerabilities.
 - [ ] Record project responses, including unresolved objections and minority
   reports.
 - [ ] Secure one willing partner for a small, public, reversible pilot.
+- [ ] Make raw retrieved artifacts first-class records with exact bytes,
+  response metadata, request details, media type, retrieval time, and digest.
+- [ ] Replace binary floating-point as the authoritative measurement carrier
+  with an exact, vocabulary-bound representation.
+- [ ] Represent source qualifiers, approval state, sampling regime, explicit
+  missingness, datum/CRS, and distinct event, recording, publication, retrieval,
+  ingestion, signing, and correction times.
+- [ ] Record extraction and normalization from artifact to observation as a
+  versioned transformation rather than an invisible parse step.
+- [ ] Require the current scalar demo fixture to fail the future instrument
+  measurement profile rather than count as a conforming observation.
 - [ ] Obtain a green hosted CI run after the GitHub account billing lock is
   resolved.
 

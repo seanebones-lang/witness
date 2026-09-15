@@ -91,5 +91,8 @@ without representing a reviewer as an endorser.
 
 ## Current review outcome
 
-No independent expert review has been completed yet. This page is the invitation
-and process for beginning that work.
+No independent expert review has been completed yet. The
+[submitted-review register](../reviews/README.md) includes owner-supplied review
+material whose authorship and independence have not been established. Its
+objections may guide work, but it does not count toward the independent-review
+gate.
