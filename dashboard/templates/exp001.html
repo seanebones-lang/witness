@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXP-001 | Witness — Proof A: Infrastructure & Reproducibility</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --bg: #0a0a0b; --bg-elevated: #121214; --border: #27272a; 
+            --text: #fafafa; --text-muted: #a1a1aa; --accent: #eab308; 
+            --observed: #22c55e; --inferred: #3b82f6; --generated: #a855f7; 
+            --failed: #ef4444;
+        }
+        * { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .bg-base { background-color: var(--bg); }
+        .bg-elevated { background-color: var(--bg-elevated); }
+        .border-base { border-color: var(--border); }
+        .text-base { color: var(--text); }
+        .text-muted { color: var(--text-muted); }
+        .badge-observed { background: rgba(34, 197, 94, 0.15); color: var(--observed); border-color: rgba(34, 197, 94, 0.3); }
+        .badge-inferred { background: rgba(59, 130, 246, 0.15); color: var(--inferred); border-color: rgba(59, 130, 246, 0.3); }
+        .badge-generated { background: rgba(168, 85, 247, 0.15); color: var(--generated); border-color: rgba(168, 85, 247, 0.3); }
+        .badge-failed { background: rgba(239, 68, 68, 0.15); color: var(--failed); border-color: rgba(239, 68, 68, 0.3); }
+        .epistemic-observed { border-left: 4px solid var(--observed); }
+        .epistemic-inferred { border-left: 4px solid var(--inferred); }
+        .epistemic-generated { border-left: 4px solid var(--generated); }
+        .epistemic-failed { border-left: 4px solid var(--failed); }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: var(--bg); }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        @keyframes pulse-accent { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .loading { animation: pulse-accent 1.5s ease-in-out infinite; }
+        .flow-arrow { position: relative; }
+        .flow-arrow::after { content: '↓'; position: absolute; left: 50%; transform: translateX(-50%); color: var(--accent); font-size: 1.5rem; animation: pulse-accent 2s ease-in-out infinite; }
+        .flow-arrow.bottom::after { bottom: -1.5rem; }
+        .flow-arrow.middle::after { top: 50%; left: -1.5rem; transform: translateY(-50%) rotate(-90deg); }
+    </style>
+</head>
+<body class="bg-base text-base min-h-screen" x-data="app()" x-init="init()">
+    <header class="border-b border-base bg-elevated/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/" class="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                    <svg class="w-8 h-8 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <div>
+                        <h1 class="font-mono text-xl font-semibold tracking-tight">Witness</h1>
+                        <p class="text-xs text-muted font-mono">public skeptic that remembers</p>
+                    </div>
+                </a>
+                <span class="hidden md:flex items-center gap-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm font-mono">
+                    Proof A — Infrastructure & Reproducibility
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Boundary Statement -->
+        <section class="mb-8 border-2 border-yellow-500/50 bg-yellow-500/5 rounded-xl p-6" role="region" aria-label="Experiment Boundary Statement">
+            <div class="flex items-start gap-4">
+                <svg class="w-6 h-6 text-yellow-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-yellow-300 mb-2">Boundary Statement — What This Experiment Does NOT Prove</h3>
+                    <p class="text-sm text-yellow-100 leading-relaxed">
+                        <strong>This experiment does not demonstrate a new drug candidate, biological efficacy, or a cancer treatment.</strong> It demonstrates that Humanity Grid can execute a computational experiment redundantly, detect disagreement, derive a bounded inference, and preserve the complete evidence trail in Witness.
+                    </p>
+                    <p class="text-xs text-yellow-500 mt-2 font-mono">Target: CDK2 • PDB: 1KE7 • Binding-site center: [-9.11, 48.31, 11.80] (LS3 co-crystallized ligand pocket)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Visual Chain -->
+        <section class="mb-8" aria-label="Evidence Chain Visualization">
+            <div class="space-y-0" x-data="{ expanded: {} }">
+                <!-- GENERATED HYPOTHESIS -->
+                <article class="epistemic-generated bg-elevated border border-base rounded-xl p-5 relative">
+                    <div class="flex items-start gap-3">
+                        <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono badge-generated flex-shrink-0">GENERATED</span>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <h3 class="font-semibold text-generated">Research Scout Hypothesis</h3>
+                                <span class="badge badge-generated text-xs">human_reviewed: false</span>
+                                <span class="badge badge-generated text-xs">model: phi-3-mini-4k-instruct</span>
+                            </div>
+                            <p class="text-sm text-muted">"Six known CDK2 inhibitors from ChEMBL will show reproducible docking scores when computed independently with AutoDock Vina using the LS3 pocket coordinates from PDB 1KE7."</p>
+                            <div class="mt-2 flex flex-wrap gap-1 text-xs">
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">EXP-001</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">hypothesis</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">research-scout</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow bottom"></div>
+                </article>
+
+                <!-- FAILED ATTEMPT (Provenance) -->
+                <article class="epistemic-failed bg-elevated border border-base rounded-xl p-5 relative" style="border-left-color: var(--failed);">
+                    <div class="flex items-start gap-3">
+                        <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono badge-failed flex-shrink-0">PROVENANCE</span>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <h3 class="font-semibold text-red-400">Failed Attempt — Incorrect Binding Site</h3>
+                                <span class="badge badge-failed text-xs">corrected</span>
+                                <span class="badge badge-failed text-xs">preserved as provenance</span>
+                            </div>
+                            <p class="text-sm text-muted">An earlier docking run used an incorrect/fabricated binding-site center (not the LS3 pocket). Produced near-zero, meaningless scores with no correlation to known actives. The assumption was challenged by comparing to the actual LS3 co-crystallized ligand pocket coordinates from PDB 1KE7. Experiment was rerun with corrected center.</p>
+                            <div class="mt-2 flex flex-wrap gap-1 text-xs">
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">EXP-001</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">failed-attempt</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">binding-site-error</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow bottom"></div>
+                </article>
+
+                <!-- EXPERIMENT DEFINITION -->
+                <article class="epistemic-inferred bg-elevated border border-base rounded-xl p-5 relative">
+                    <div class="flex items-start gap-3">
+                        <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono badge-inferred flex-shrink-0">EXPERIMENT</span>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-inferred mb-2">EXP-001: CDK2 / 1KE7 Validation</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                                <div><span class="text-muted block">Target</span><span class="font-mono">CDK2</span></div>
+                                <div><span class="text-muted block">PDB</span><span class="font-mono">1KE7</span></div>
+                                <div><span class="text-muted block">Binding-site center</span><span class="font-mono">[-9.11, 48.31, 11.80]</span></div>
+                                <div><span class="text-muted block">Box size</span><span class="font-mono">24×24×24 Å</span></div>
+                                <div class="sm:col-span-2"><span class="text-muted block">Compounds</span><span class="font-mono">6 ChEMBL CDK2 actives</span></div>
+                                <div><span class="text-muted block">Engine</span><span class="font-mono">AutoDock Vina 1.2.5</span></div>
+                                <div><span class="text-muted block">Exhaustiveness</span><span class="font-mono">8 • CPU: 4</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow bottom"></div>
+                </article>
+
+                <!-- REPLICATE 1 - OBSERVED -->
+                <article class="epistemic-observed bg-elevated border border-base rounded-xl p-5 relative">
+                    <div class="flex items-start gap-3">
+                        <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono badge-observed flex-shrink-0">OBSERVED</span>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <h3 class="font-semibold text-observed">Replicate 1 — Seed 101</h3>
+                                <span class="badge badge-observed text-xs">instrument: autodock-vina-1.2.5</span>
+                            </div>
+                            <p class="text-sm text-muted mb-2">Raw docking affinity measurements (kcal/mol) from independent computation.</p>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm font-mono">
+                                    <thead>
+                                        <tr class="text-left text-muted border-b border-base">
+                                            <th class="pb-2 pr-4">Compound</th>
+                                            <th class="pb-2 pr-4">Affinity (kcal/mol)</th>
+                                            <th class="pb-2 pr-4">RMSD lb/ub</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-base/50">
+                                        <tr><td class="py-1 pr-4">CHEMBL331829</td><td class="py-1 pr-4 text-observed">-6.927</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL434844</td><td class="py-1 pr-4 text-observed">-6.856</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL2106406</td><td class="py-1 pr-4 text-observed">-7.847</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL363112</td><td class="py-1 pr-4 text-observed">-6.567</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL495686</td><td class="py-1 pr-4 text-observed">-7.027</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL1234501</td><td class="py-1 pr-4 text-observed">-6.593</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-1 text-xs">
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">EXP-001</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">replicate-1</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">seed-101</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">cdk2</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">1KE7</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow middle"></div>
+                </article>
+
+                <!-- REPLICATE 2 - OBSERVED -->
+                <article class="epistemic-observed bg-elevated border border-base rounded-xl p-5 relative">
+                    <div class="flex items-start gap-3">
+                        <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono badge-observed flex-shrink-0">OBSERVED</span>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <h3 class="font-semibold text-observed">Replicate 2 — Seed 202</h3>
+                                <span class="badge badge-observed text-xs">instrument: autodock-vina-1.2.5</span>
+                            </div>
+                            <p class="text-sm text-muted mb-2">Independent raw docking affinity measurements (kcal/mol) from second computation.</p>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm font-mono">
+                                    <thead>
+                                        <tr class="text-left text-muted border-b border-base">
+                                            <th class="pb-2 pr-4">Compound</th>
+                                            <th class="pb-2 pr-4">Affinity (kcal/mol)</th>
+                                            <th class="pb-2 pr-4">RMSD lb/ub</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-base/50">
+                                        <tr><td class="py-1 pr-4">CHEMBL331829</td><td class="py-1 pr-4 text-observed">-6.740</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL434844</td><td class="py-1 pr-4 text-observed">-6.865</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL2106406</td><td class="py-1 pr-4 text-observed">-7.847</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL363112</td><td class="py-1 pr-4 text-observed">-6.542</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL495686</td><td class="py-1 pr-4 text-observed">-7.597</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL1234501</td><td class="py-1 pr-4 text-observed">-6.532</td><td class="py-1 pr-4 text-muted">0.0 / 0.0</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-1 text-xs">
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">EXP-001</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">replicate-2</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">seed-202</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">cdk2</span>
+                                <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">1KE7</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow bottom"></div>
+                </article>
+
+                <!-- VALIDATION / CONSENSUS -->
+                <article class="epistemic-inferred bg-elevated border border-base rounded-xl p-5 relative">
+                    <div class="flex items-start gap-3">
+                        <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono badge-inferred flex-shrink-0">VALIDATION</span>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-inferred mb-3">Consensus Calculation & Outlier Detection</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+                                <div class="bg-base border border-base rounded-lg p-3 text-center">
+                                    <div class="text-3xl font-bold text-inferred">0.885</div>
+                                    <div class="text-xs text-muted">Pearson r</div>
+                                </div>
+                                <div class="bg-base border border-base rounded-lg p-3 text-center">
+                                    <div class="text-3xl font-bold text-yellow-400">≥ 0.80</div>
+                                    <div class="text-xs text-muted">Threshold</div>
+                                </div>
+                                <div class="bg-base border border-base rounded-lg p-3 text-center">
+                                    <div class="text-3xl font-bold text-observed">PASS</div>
+                                    <div class="text-xs text-muted">Consensus</div>
+                                </div>
+                                <div class="bg-base border border-base rounded-lg p-3 text-center">
+                                    <div class="text-3xl font-bold text-red-400">1</div>
+                                    <div class="text-xs text-muted">Outliers</div>
+                                </div>
+                                <div class="bg-base border border-base rounded-lg p-3 text-center">
+                                    <div class="text-3xl font-bold text-muted">IQR</div>
+                                    <div class="text-xs text-muted">Method</div>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto mb-4">
+                                <table class="w-full text-sm font-mono">
+                                    <thead>
+                                        <tr class="text-left text-muted border-b border-base">
+                                            <th class="pb-2 pr-4">Compound</th>
+                                            <th class="pb-2 pr-4">Rep 1</th>
+                                            <th class="pb-2 pr-4">Rep 2</th>
+                                            <th class="pb-2 pr-4">|Diff|</th>
+                                            <th class="pb-2 pr-4">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-base/50">
+                                        <tr><td class="py-1 pr-4">CHEMBL331829</td><td class="py-1 pr-4">-6.927</td><td class="py-1 pr-4">-6.740</td><td class="py-1 pr-4">0.187</td><td class="py-1 pr-4 text-observed">OK</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL434844</td><td class="py-1 pr-4">-6.856</td><td class="py-1 pr-4">-6.865</td><td class="py-1 pr-4">0.009</td><td class="py-1 pr-4 text-observed">OK</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL2106406</td><td class="py-1 pr-4">-7.847</td><td class="py-1 pr-4">-7.847</td><td class="py-1 pr-4">0.000</td><td class="py-1 pr-4 text-observed">OK</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL363112</td><td class="py-1 pr-4">-6.567</td><td class="py-1 pr-4">-6.542</td><td class="py-1 pr-4">0.025</td><td class="py-1 pr-4 text-observed">OK</td></tr>
+                                        <tr class="bg-red-500/5"><td class="py-1 pr-4">CHEMBL495686</td><td class="py-1 pr-4">-7.027</td><td class="py-1 pr-4">-7.597</td><td class="py-1 pr-4 text-red-400">0.570</td><td class="py-1 pr-4 text-red-400 font-medium">OUTLIER</td></tr>
+                                        <tr><td class="py-1 pr-4">CHEMBL1234501</td><td class="py-1 pr-4">-6.593</td><td class="py-1 pr-4">-6.532</td><td class="py-1 pr-4">0.061</td><td class="py-1 pr-4 text-observed">OK</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-xs text-muted"><strong>Outlier rationale:</strong> CHEMBL495686 shows |Δ| = 0.570 kcal/mol between replicates, exceeding the IQR upper bound (Q3 + 1.5×IQR = 0.369). This compound's docking pose may be sensitive to the random seed.</p>
+                        </div>
+                    </div>
+                    <div class="flow-arrow bottom"></div>
+                </article>
+
+                <!-- INFERRED RESULT -->
+                <article class="epistemic-inferred bg-elevated border border-base rounded-xl p-5 relative">
+                    <div class="flex items-start gap-3">
+                        <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono badge-inferred flex-shrink-0">INFERRED</span>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-inferred mb-2">Consensus Inference</h3>
+                            <div class="prose prose-sm prose-invert max-w-none text-sm">
+                                <p><strong>Claim:</strong> The two independent Vina replicates (seeds 101, 202) produce correlated docking scores (r = 0.885) exceeding the consensus threshold (r ≥ 0.80), indicating reproducible binding affinity predictions for six known CDK2 inhibitors.</p>
+                                <p><strong>Premises:</strong> 12 observed docking measurements (6 compounds × 2 replicates), each from independent AutoDock Vina runs with different random seeds but identical binding-site parameters.</p>
+                                <p><strong>Methodology:</strong> Pearson correlation between replicate score vectors. Outlier detection via IQR on per-compound absolute differences.</p>
+                                <p><strong>Uncertainty:</strong> ±0.115 (bootstrap 95% CI on correlation coefficient)</p>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-base">
+                                <h4 class="font-medium text-sm mb-2">Falsifiers (What Would Change This Conclusion)</h4>
+                                <div class="space-y-2 text-sm">
+                                    <div class="bg-base border border-base rounded-lg p-3">
+                                        <div class="flex items-start gap-2">
+                                            <span class="badge badge-generated text-xs flex-shrink-0">Pending</span>
+                                            <div><strong>Third replicate falsification:</strong> A third independent Vina replicate with a different seed produces docking scores that correlate with the first two at r < 0.80.</div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-base border border-base rounded-lg p-3">
+                                        <div class="flex items-start gap-2">
+                                            <span class="badge badge-generated text-xs flex-shrink-0">Pending</span>
+                                            <div><strong>Experimental contradiction:</strong> Wet-lab binding assays (ITC, SPR) for the six compounds contradict the predicted rank order from consensus docking scores.</div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-base border border-base rounded-lg p-3">
+                                        <div class="flex items-start gap-2">
+                                            <span class="badge badge-observed text-xs flex-shrink-0">Completed-Falsified</span>
+                                            <div><strong>Incorrect center falsification:</strong> Using the earlier incorrect binding-site center yields r < 0.80 or reversed rank order — already observed in the failed attempt.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- LEGEND -->
+                <article class="bg-elevated border border-base rounded-xl p-4">
+                    <h4 class="font-medium mb-3">Epistemic Category Legend</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                        <div class="flex items-center gap-2 p-2 bg-base rounded-lg border border-base">
+                            <div class="w-3 h-3 rounded-full" style="background: var(--observed)"></div>
+                            <div><strong class="text-observed">OBSERVED</strong><br><span class="text-muted">Actual measurements produced by computation</span></div>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 bg-base rounded-lg border border-base">
+                            <div class="w-3 h-3 rounded-full" style="background: var(--inferred)"></div>
+                            <div><strong class="text-inferred">INFERRED</strong><br><span class="text-muted">Conclusions derived from observations with premises, methodology, uncertainty, and falsifiers</span></div>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 bg-base rounded-lg border border-base">
+                            <div class="w-3 h-3 rounded-full" style="background: var(--generated)"></div>
+                            <div><strong class="text-generated">GENERATED</strong><br><span class="text-muted">Model-produced hypotheses — not evidence merely because a model produced them</span></div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Witness Records Section -->
+        <section class="mb-8" aria-label="Witness Records">
+            <h2 class="font-mono text-lg font-semibold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Witness Records (Click to Inspect Full Provenance)
+            </h2>
+            <div class="space-y-3" id="witnessRecords">
+                <div class="loading text-center py-8 text-muted">Loading Witness records…</div>
+            </div>
+        </section>
+
+        <!-- Questions Answered -->
+        <section class="mb-8 bg-elevated border border-base rounded-xl p-6" aria-label="Questions This Page Answers">
+            <h2 class="font-mono text-lg font-semibold mb-4">Questions Answered Without Verbal Explanation</h2>
+            <dl class="space-y-3 text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                    <dt class="text-muted font-mono">1.</dt><dd>What question was being tested?</dd>
+                    <dt class="text-muted font-mono">2.</dt><dd>Who or what proposed it?</dd>
+                    <dt class="text-muted font-mono">3.</dt><dd>What computation actually ran?</dd>
+                    <dt class="text-muted font-mono">4.</dt><dd>What raw measurements came back?</dd>
+                    <dt class="text-muted font-mono">5.</dt><dd>Were those measurements independently reproduced?</dd>
+                    <dt class="text-muted font-mono">6.</dt><dd>Did the replicates agree?</dd>
+                    <dt class="text-muted font-mono">7.</dt><dd>Was anything abnormal or contradictory detected?</dd>
+                    <dt class="text-muted font-mono">8.</dt><dd>What conclusion was inferred from those observations?</dd>
+                    <dt class="text-muted font-mono">9.</dt><dd>What evidence supports that conclusion?</dd>
+                    <dt class="text-muted font-mono">10.</dt><dd>What would falsify it?</dd>
+                    <dt class="text-muted font-mono">11.</dt><dd>Which parts were generated by AI?</dd>
+                    <dt class="text-muted font-mono">12.</dt><dd>Can I inspect the entire chain myself?</dd>
+                    <dt class="text-muted font-mono">13.</dt><dd>Can the historical record be silently rewritten?</dd>
+                    <dt class="text-muted font-mono">14.</dt><dd>What does the experiment prove?</dd>
+                    <dt class="text-muted font-mono">15.</dt><dd>What does it explicitly NOT prove?</dd>
+                </div>
+            </dl>
+            <div class="mt-4 p-4 bg-base border border-base rounded-lg">
+                <h4 class="font-medium mb-2">Answers Summary</h4>
+                <ul class="space-y-1 text-sm text-muted">
+                    <li>1. Can AutoDock Vina reproducibly predict binding affinities for known CDK2 inhibitors using the correct LS3 pocket?</li>
+                    <li>2. Research Scout (phi-3-mini-4k-instruct) — <strong>generated, human_reviewed: false</strong></li>
+                    <li>3. Two independent AutoDock Vina 1.2.5 runs (seeds 101, 202; exhaustiveness=8, CPU=4) on PDB 1KE7 LS3 pocket center [-9.11, 48.31, 11.80], 24Å box, 6 ChEMBL actives</li>
+                    <li>4. 12 docking affinity measurements (kcal/mol) — see Observed tables above</li>
+                    <li>5. Yes — two independent computations with different random seeds</li>
+                    <li>6. Pearson r = 0.885 (threshold ≥ 0.80) → <strong>Consensus: PASS</strong></li>
+                    <li>7. Yes — CHEMBL495686 flagged as IQR outlier (|Δ| = 0.570 kcal/mol)</li>
+                    <li>8. Replicates are correlated above threshold; docking predictions for these 6 compounds are reproducible</li>
+                    <li>9. 12 observed measurements, Pearson r=0.885, IQR outlier analysis, failed attempt provenance</li>
+                    <li>10. Three falsifiers defined (see Inferred section) — one already completed (incorrect center)</li>
+                    <li>11. The hypothesis (Research Scout, phi-3-mini) — marked <span class="badge badge-generated text-xs">GENERATED</span> <span class="badge badge-generated text-xs">human_reviewed:false</span></li>
+                    <li>12. Yes — every record links to Witness nodes with CIDs, parents, timestamps, authors</li>
+                    <li>13. No — Witness is append-only; corrections create new nodes with parent links (diffs tracked)</li>
+                    <li>14. Humanity Grid can execute redundant computation, detect disagreement, derive bounded inference, preserve evidence trail</li>
+                    <li>15. Does NOT prove: new drug candidate, biological efficacy, cancer treatment, or that docking scores predict actual binding</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Future Architecture Milestones -->
+        <section class="mb-8 bg-elevated border border-base rounded-xl p-6" aria-label="Future Architecture Milestones">
+            <h2 class="font-mono text-lg font-semibold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Documented Future Milestones (Not Implemented in Proof A)
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-medium text-yellow-400 mb-3">Witness Protocol v1</h3>
+                    <ul class="space-y-2 text-sm text-muted">
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-inferred"></span>ObservationEnvelope</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-inferred"></span>InferenceEnvelope</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-generated"></span>GenerationEnvelope</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-base"></span>ArtifactReference</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-base"></span>ProvenanceReference</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-base"></span>Identity</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-base"></span>Signature</li>
+                    </ul>
+                    <p class="text-xs text-muted mt-3">Decouples Humanity Grid from Witness internals. Enables journalism systems, sensor networks, scientific instruments, AI agents, government datasets, human-rights archives to all target the same ingest protocol.</p>
+                </div>
+                <div>
+                    <h3 class="font-medium text-yellow-400 mb-3">Authenticated Ingest Pipeline</h3>
+                    <ol class="space-y-2 text-sm text-muted">
+                        <li class="flex items-center gap-2"><span class="badge badge-generated text-xs">1</span>Volunteer node submits candidate result</li>
+                        <li class="flex items-center gap-2"><span class="badge badge-generated text-xs">2</span>Artifact hash computed</li>
+                        <li class="flex items-center gap-2"><span class="badge badge-generated text-xs">3</span>Node identity + signature attached</li>
+                        <li class="flex items-center gap-2"><span class="badge badge-inferred text-xs">4</span>Grid validation: redundant execution</li>
+                        <li class="flex items-center gap-2"><span class="badge badge-inferred text-xs">5</span>Redundant consensus reached</li>
+                        <li class="flex items-center gap-2"><span class="badge badge-inferred text-xs">6</span>Signed experiment envelope produced</li>
+                        <li class="flex items-center gap-2"><span class="badge badge-observed text-xs">7</span>Witness verification of envelope</li>
+                        <li class="flex items-center gap-2"><span class="badge badge-observed text-xs">8</span>Append-only classification/storage</li>
+                    </ol>
+                    <p class="text-xs text-muted mt-3">A compromised volunteer computer must never be able to self-certify "this is definitely an observation." Authority/classification comes from the validation pipeline, not the submitter.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reproduction Instructions -->
+        <section class="mb-8 bg-elevated border border-base rounded-xl p-6" aria-label="Reproduction Instructions">
+            <h2 class="font-mono text-lg font-semibold mb-4">Reproduce Locally</h2>
+            <div class="space-y-4 text-sm">
+                <div>
+                    <h4 class="font-medium mb-2">Prerequisites</h4>
+                    <pre class="bg-base border border-base rounded-lg p-3 font-mono text-xs overflow-auto"><code># Humanity Grid
+cd ~/Desktop/humanity-grid
+# Requires: AutoDock Vina 1.2.5, Python 3.10+, openbabel, rdkit
+
+# Witness
+cd ~/Witness
+cargo build --release --bin witness-ingestion
+cargo run --release --bin witness-api
+# Dashboard at http://127.0.0.1:8080/experiments/EXP-001</code></pre>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Run EXP-001</h4>
+                    <pre class="bg-base border border-base rounded-lg p-3 font-mono text-xs overflow-auto"><code># From humanity-grid root
+python validation/run_vina_replicate.py --pdb 1KE7 --center -9.11,48.31,11.80 --seed 101 --output validation/output/results/rep1
+python validation/run_vina_replicate.py --pdb 1KE7 --center -9.11,48.31,11.80 --seed 202 --output validation/output/results/rep2
+python validation/consensus.py --rep1 validation/output/results/rep1 --rep2 validation/output/results/rep2</code></pre>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Ingest into Witness</h4>
+                    <pre class="bg-base border border-base rounded-lg p-3 font-mono text-xs overflow-auto"><code># Using the ingestion CLI (requires valid CIDs matching payload)
+witness-ingestion jsonl --file exp001_observed.jsonl
+witness-ingestion infer --file exp001_inferred.json
+witness-ingestion generate --file exp001_generated.json</code></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-base py-6 text-center text-sm text-muted">
+        <p class="font-mono">Witness — Proof A: Infrastructure & Reproducibility</p>
+        <p class="mt-1">EXP-001 • CDK2 / 1KE7 • Humanity Grid + Witness</p>
+    </footer>
+
+    <script>
+        function app() {
+            return {
+                witnessRecords: [],
+                async init() {
+                    await this.loadWitnessRecords();
+                },
+                async loadWitnessRecords() {
+                    try {
+                        // Query Witness for EXP-001 labeled nodes
+                        const res = await fetch('/api/nodes?label=EXP-001&limit=50');
+                        const data = await res.json();
+                        this.witnessRecords = data.nodes || [];
+                        this.renderRecords();
+                    } catch (e) {
+                        console.error(e);
+                        document.getElementById('witnessRecords').innerHTML = '<p class="text-red-400 text-center py-8">Failed to load Witness records</p>';
+                    }
+                },
+                renderRecords() {
+                    const container = document.getElementById('witnessRecords');
+                    if (this.witnessRecords.length === 0) {
+                        container.innerHTML = '<p class="text-muted text-center py-8">No EXP-001 records found in Witness yet. Ingest data first.</p>';
+                        return;
+                    }
+
+                    // Group by epistemic type
+                    const groups = {
+                        'Observed': this.witnessRecords.filter(n => n.epistemic_type === 'Observed'),
+                        'Inferred': this.witnessRecords.filter(n => n.epistemic_type === 'Inferred'),
+                        'Generated': this.witnessRecords.filter(n => n.epistemic_type === 'Generated'),
+                    };
+
+                    container.innerHTML = Object.entries(groups).map(([type, nodes]) => {
+                        if (nodes.length === 0) return '';
+                        const badgeClass = type === 'Observed' ? 'badge-observed' : type === 'Inferred' ? 'badge-inferred' : 'badge-generated';
+                        const cardClass = type === 'Observed' ? 'epistemic-observed' : type === 'Inferred' ? 'epistemic-inferred' : 'epistemic-generated';
+                        return `
+                            <div class="${cardClass} bg-elevated border border-base rounded-xl p-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono ${badgeClass}">${type}</span>
+                                    <span class="text-xs text-muted font-mono">${nodes.length} record(s)</span>
+                                </div>
+                                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                    ${nodes.map(n => `
+                                        <button onclick="openWitnessDetail('${n.id}')" class="text-left p-3 bg-base border border-base rounded-lg hover:border-yellow-500/50 transition-colors">
+                                            <div class="font-mono text-xs text-muted mb-1 truncate" title="${n.id}">${n.id}</div>
+                                            <div class="text-xs text-base line-clamp-2">${this.summarizePayload(n.payload, n.epistemic_type)}</div>
+                                            <div class="flex flex-wrap gap-1 mt-2">
+                                                ${(n.labels || []).slice(0, 3).map(l => `<span class="px-1.5 py-0.5 bg-elevated border border-base rounded text-xs text-muted font-mono">${l}</span>`).join('')}
+                                            </div>
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                },
+                summarizePayload(payload, type) {
+                    if (!payload) return 'No payload';
+                    if (type === 'Observed' && payload.observation?.measurement) {
+                        const m = payload.observation.measurement;
+                        return `${m.quantity}: ${m.value?.numeric ?? '?'} ${m.value?.unit ?? ''} @ ${m.location?.station_id ?? ''}`;
+                    }
+                    if (type === 'Inferred' && payload.derivation?.claim) {
+                        return payload.derivation.claim.statement?.slice(0, 80) + '...';
+                    }
+                    if (type === 'Generated' && payload.model) {
+                        return `Model: ${payload.model.id} • Prompt: ${payload.prompt?.slice(0, 40)}...`;
+                    }
+                    return JSON.stringify(payload).slice(0, 80) + '...';
+                }
+            }
+        }
+
+        function openWitnessDetail(nodeId) {
+            window.open(`/?node=${nodeId}`, '_blank');
+        }
+    </script>
+</body>
+</html>
