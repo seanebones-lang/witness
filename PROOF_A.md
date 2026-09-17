@@ -1,8 +1,8 @@
 # Proof A — Infrastructure & Reproducibility (Frozen)
 
 ## Commit SHAs
-- **Witness**: `f37f9ac` (tagged `proof-a-v1`)
-- **Humanity Grid**: `3b01f81` (tagged `proof-a-v1`)
+- **Witness**: `2052dc2` (tagged `proof-a-v1`)
+- **Humanity Grid**: `3f863c9` (tagged `proof-a-v1`)
 
 ## How to Start Witness
 ```bash
