@@ -188,6 +188,54 @@ DATABASE_URL=sqlite://./witness.db PORT=8080 cargo run --package witness-api
 address produces a warning and does not add authentication, authorization, rate
 limits, transport security, or production support.
 
+### REST ingest endpoints
+
+The API exposes one write endpoint per epistemic type so any client can
+deposit a record over plain HTTP (no GraphQL client, no signing key required
+for the prototype). Each returns the created node's `{id, cid, epistemic_type,
+parents}`.
+
+```bash
+# Observation (a measured value)
+curl -X POST http://127.0.0.1:8080/api/ingest/observation \
+  -H 'Content-Type: application/json' \
+  -d '{"quantity":"docking_affinity_best","value":"-7.847","unit":"kcal/mol",
+       "instrument_id":"autodock:vina1.2","instrument_name":"AutoDock Vina",
+       "author_id":"compute:node-148","author_type":"instrument",
+       "domain":"cancer-screening",
+       "source_uri":"grid://1KE7/EXP-001/wu/rep1",
+       "labels":["raw-score","rep1"]}'
+
+# Inference (a claim derived from premises; premises must already exist)
+curl -X POST http://127.0.0.1:8080/api/ingest/inference \
+  -H 'Content-Type: application/json' \
+  -d '{"claim":"Consensus for EXP-001: 1/1 work units reproduced (r>=0.8)",
+       "methodology":"Redundant work units; Pearson correlation; IQR outliers",
+       "premises":["<observed-node-uuid-a>","<observed-node-uuid-b>"],
+       "claim_type":"correlative","claim_scope":"specific",
+       "inference_uncertainty":0.115,
+       "falsifiers":[{"description":"Third run disagrees past threshold",
+                      "measurement_type":"docking_affinity",
+                      "timeframe":"immediate","status":"pending"}],
+       "author_id":"humanity-grid:consensus-engine","author_type":"software",
+       "domain":"cancer-screening","labels":["consensus"]}'
+
+# Generated (model output; tagged human_reviewed:false by default)
+curl -X POST http://127.0.0.1:8080/api/ingest/generation \
+  -H 'Content-Type: application/json' \
+  -d '{"content":"Hypothesis H-9182: screen ChEMBL approved against CDK2.",
+       "generator":"research-scout","model_version":"v0.1",
+       "prompt":"Propose first virtual-screening experiment",
+       "author_id":"research-scout:scout-v1","domain":"cancer-screening",
+       "labels":["hypothesis","generated"]}'
+```
+
+>`author_type` values: `human`, `instrument`, `model`, `institution`, `software`.
+>`value` on an observation is parsed as a number when possible, else treated as
+>text. Inferred `premises` must reference existing node UUIDs (a missing premise
+>is rejected with an error). Generated records default to `human_reviewed:false`
+>and must not be silently promoted to Observed.
+
 ### Sign an observation
 
 Generate a private key:
