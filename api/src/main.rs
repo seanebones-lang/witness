@@ -6,10 +6,12 @@ use axum::{
     extract::{Path, Query, State},
     routing::get,
 };
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use uuid::Uuid;
 use witness_core::Result as CoreResult;
 use witness_core::ingestion::IngestionService;
 use witness_core::storage::Storage;
@@ -475,6 +477,20 @@ pub async fn run_server(database_url: &str, host: &str, port: u16) -> CoreResult
         .route("/api/nodes/{id}/children", get(get_children))
         .route("/api/nodes/{id}/falsifiers", get(get_falsifiers))
         .route("/api/nodes/{id}/diffs", get(get_diffs))
+        // REST ingest endpoints (write) — one per epistemic type so a
+        // stdlib-only client (e.g. the Humanity Grid bridge) can deposit records
+        .route(
+            "/api/ingest/observation",
+            axum::routing::post(ingest_observation_rest),
+        )
+        .route(
+            "/api/ingest/inference",
+            axum::routing::post(ingest_inference_rest),
+        )
+        .route(
+            "/api/ingest/generation",
+            axum::routing::post(ingest_generation_rest),
+        )
         // Dashboard
         .route("/", get(serve_dashboard))
         .with_state(state);
@@ -774,6 +790,295 @@ async fn get_diffs(
     Ok(Json(DiffsResponse {
         diffs: diff_responses,
     }))
+}
+
+// REST ingest request / response types
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RestIngestResponse {
+    pub id: String,
+    pub cid: String,
+    pub epistemic_type: String,
+    pub parents: Vec<String>,
+}
+
+impl From<ProvenanceNode> for RestIngestResponse {
+    fn from(n: ProvenanceNode) -> Self {
+        Self {
+            id: n.id.to_string(),
+            cid: n.cid.0,
+            epistemic_type: format!("{:?}", n.epistemic_type).to_lowercase(),
+            parents: n.parents.iter().map(|p| p.to_string()).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RestObservationRequest {
+    pub quantity: String,
+    pub value: String, // numeric or text
+    pub unit: Option<String>,
+    pub measured_at: Option<String>,
+    pub instrument_id: String,
+    pub instrument_name: Option<String>,
+    pub author_id: String,
+    pub author_name: Option<String>,
+    pub author_type: Option<String>, // defaults to instrument
+    pub domain: Option<String>,
+    pub source_uri: Option<String>,
+    pub labels: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RestInferenceRequest {
+    pub claim: String,
+    pub methodology: String,
+    pub premises: Vec<String>,
+    pub claim_type: Option<String>,
+    pub claim_scope: Option<String>,
+    pub falsifiers: Option<Vec<RestFalsifier>>,
+    pub inference_uncertainty: Option<f64>,
+    pub author_id: String,
+    pub author_name: Option<String>,
+    pub author_type: Option<String>, // defaults to human
+    pub domain: Option<String>,
+    pub source_uri: Option<String>,
+    pub labels: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RestFalsifier {
+    pub description: String,
+    pub measurement_type: String,
+    pub timeframe: Option<String>,
+    pub status: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RestGenerationRequest {
+    pub content: String,
+    pub generator: String, // model id
+    pub model_version: Option<String>,
+    pub prompt: Option<String>,
+    pub human_reviewed: Option<bool>,
+    pub author_id: String,
+    pub author_name: Option<String>,
+    pub domain: Option<String>,
+    pub source_uri: Option<String>,
+    pub labels: Option<Vec<String>>,
+}
+
+fn parse_rest_uuid_list(ids: &[String]) -> Result<Vec<Uuid>, axum::http::StatusCode> {
+    ids.iter()
+        .map(|s| {
+            Uuid::parse_str(s)
+                .map_err(|_| axum::http::StatusCode::BAD_REQUEST)
+        })
+        .collect()
+}
+
+async fn ingest_observation_rest(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<RestObservationRequest>,
+) -> Result<Json<RestIngestResponse>, axum::http::StatusCode> {
+    // value: numeric if parseable, else text
+    let value_numeric = req.value.parse::<f64>().ok();
+    let value_text = if value_numeric.is_some() {
+        None
+    } else {
+        Some(req.value.clone())
+    };
+    if value_numeric.is_none() && value_text.is_none() {
+        return Err(axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    let author_type = match req.author_type.as_deref().unwrap_or("instrument").to_ascii_lowercase().as_str() {
+        "human" => AuthorType::Human,
+        "instrument" => AuthorType::Instrument,
+        "model" => AuthorType::Model,
+        "institution" => AuthorType::Institution,
+        "software" => AuthorType::Software,
+        _ => return Err(axum::http::StatusCode::BAD_REQUEST),
+    };
+
+    let measurement = Measurement {
+        quantity: req.quantity,
+        value: MeasuredValue {
+            numeric: value_numeric,
+            text: value_text,
+            unit: req.unit,
+            categorical: None,
+        },
+        location: Location {
+            latitude: None,
+            longitude: None,
+            station_id: None,
+            description: None,
+            altitude_m: None,
+        },
+        measured_at: req
+            .measured_at
+            .as_deref()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_else(Utc::now),
+        instrument: InstrumentRef {
+            id: req.instrument_id,
+            name: req.instrument_name,
+            model: None,
+            calibration_ref: None,
+        },
+        uncertainty: None,
+        chain_of_custody: None,
+    };
+    let author = Author {
+        id: req.author_id,
+        name: req.author_name,
+        author_type,
+        metadata: std::collections::HashMap::new(),
+    };
+    let service = IngestionService::new(state.storage.clone());
+    let node = service
+        .ingest_observation(
+            measurement,
+            author,
+            req.labels.unwrap_or_default(),
+            req.domain,
+            req.source_uri,
+            None,
+        )
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(node.into()))
+}
+
+async fn ingest_inference_rest(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<RestInferenceRequest>,
+) -> Result<Json<RestIngestResponse>, axum::http::StatusCode> {
+    let premises = parse_rest_uuid_list(&req.premises)?;
+    let author_type = match req.author_type.as_deref().unwrap_or("human").to_ascii_lowercase().as_str() {
+        "human" => AuthorType::Human,
+        "instrument" => AuthorType::Instrument,
+        "model" => AuthorType::Model,
+        "institution" => AuthorType::Institution,
+        "software" => AuthorType::Software,
+        _ => return Err(axum::http::StatusCode::BAD_REQUEST),
+    };
+    let claim_type = match req.claim_type.as_deref().unwrap_or("descriptive").to_ascii_lowercase().as_str() {
+        "causal" => ClaimType::Causal,
+        "correlative" => ClaimType::Correlative,
+        "predictive" => ClaimType::Predictive,
+        "descriptive" => ClaimType::Descriptive,
+        "counterfactual" => ClaimType::Counterfactual,
+        _ => return Err(axum::http::StatusCode::BAD_REQUEST),
+    };
+    let claim_scope = match req.claim_scope.as_deref().unwrap_or("specific").to_ascii_lowercase().as_str() {
+        "specific" => ClaimScope::Specific,
+        "general" => ClaimScope::General,
+        "universal" => ClaimScope::Universal,
+        _ => return Err(axum::http::StatusCode::BAD_REQUEST),
+    };
+
+    let falsifiers = req
+        .falsifiers
+        .unwrap_or_default()
+        .into_iter()
+        .map(|f| Falsifier {
+            description: f.description,
+            measurement_type: f.measurement_type,
+            location: None,
+            timeframe: f.timeframe,
+            status: match f.status.as_deref().unwrap_or("pending").to_ascii_lowercase().as_str() {
+                "pending" => FalsifierStatus::Pending,
+                "in-progress" => FalsifierStatus::InProgress,
+                "completed-falsified" => FalsifierStatus::CompletedFalsified,
+                "completed-confirmed" => FalsifierStatus::CompletedConfirmed,
+                _ => FalsifierStatus::Pending,
+            },
+        })
+        .collect();
+
+    let derivation = Derivation {
+        premises,
+        methodology: req.methodology,
+        model_ref: None,
+        parameters: std::collections::HashMap::new(),
+        claim: Claim {
+            statement: req.claim,
+            claim_type,
+            scope: claim_scope,
+        },
+        falsifiers,
+        inference_uncertainty: req.inference_uncertainty,
+    };
+    let author = Author {
+        id: req.author_id,
+        name: req.author_name,
+        author_type,
+        metadata: std::collections::HashMap::new(),
+    };
+    let service = IngestionService::new(state.storage.clone());
+    let node = service
+        .ingest_inference(
+            derivation,
+            author,
+            req.labels.unwrap_or_default(),
+            req.domain,
+            req.source_uri,
+            None,
+        )
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(node.into()))
+}
+
+async fn ingest_generation_rest(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<RestGenerationRequest>,
+) -> Result<Json<RestIngestResponse>, axum::http::StatusCode> {
+    let author = Author {
+        id: req.author_id,
+        name: req.author_name,
+        author_type: AuthorType::Model,
+        metadata: std::collections::HashMap::new(),
+    };
+    let generation = Generation {
+        node: ProvenanceNode {
+            id: Uuid::new_v4(),
+            cid: CID::new(req.content.as_bytes()),
+            epistemic_type: EpistemicType::Generated,
+            payload: serde_json::json!({ "content": req.content }),
+            author: author.clone(),
+            timestamp: Utc::now(),
+            parents: vec![],
+            labels: req.labels.clone().unwrap_or_default(),
+            domain: req.domain.clone(),
+            source_uri: req.source_uri.clone(),
+            signature: None,
+        },
+        model: ModelRef {
+            id: req.generator,
+            version: req.model_version.unwrap_or_else(|| "unknown".to_string()),
+            hash: None,
+            training_data_ref: None,
+        },
+        prompt: req.prompt,
+        parameters: std::collections::HashMap::new(),
+        human_reviewed: req.human_reviewed.unwrap_or(false),
+    };
+    let service = IngestionService::new(state.storage.clone());
+    let node = service
+        .ingest_generation(
+            generation,
+            author,
+            req.labels.unwrap_or_default(),
+            req.domain,
+            req.source_uri,
+            None,
+        )
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(node.into()))
 }
 
 // Main entry point
