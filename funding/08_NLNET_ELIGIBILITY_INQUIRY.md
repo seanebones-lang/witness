@@ -1,6 +1,6 @@
 # Draft: NLnet Restack eligibility inquiry
 
-**Status:** ready for Sean to send after review. It is not sent.
+**Status:** sent to NLnet through its public contact form on September 18, 2026. This is an eligibility inquiry, not a project proposal or funding application.
 
 **To:** Use the public NLnet contact route or the September 30, 2026 office hour.
 
