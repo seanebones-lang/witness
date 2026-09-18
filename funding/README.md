@@ -22,6 +22,8 @@ This packet turns the existing Proof A demonstration into a bounded funding case
 5. [Current Evidence and Risks](05_CURRENT_EVIDENCE_AND_RISKS.md) — claims that can be made today and claims that cannot.
 6. [Funding Program Sources](06_FUNDING_PROGRAM_SOURCES.md) — current official-program sources and application discipline.
 7. [Outreach and Review Materials](../OUTREACH_TARGETS.md) — current external-review targets and the public reviewer path.
+8. [NLnet Restack Submission Draft](07_NLNET_RESTACK_SUBMISSION_DRAFT.md) — the only near-term grant draft; it requires a factual European-dimension gate before submission.
+9. [NLnet Eligibility Inquiry](08_NLNET_ELIGIBILITY_INQUIRY.md) — a ready-to-send question that can resolve that gate.
 
 ## Non-negotiable statement
 
