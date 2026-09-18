@@ -493,6 +493,7 @@ pub async fn run_server(database_url: &str, host: &str, port: u16) -> CoreResult
         )
         // Dashboard
         .route("/", get(serve_dashboard))
+        .route("/experiments/EXP-001", get(serve_exp001))
         .with_state(state);
 
     if host != "127.0.0.1" && host != "localhost" && host != "::1" {
@@ -523,6 +524,12 @@ async fn health_check() -> &'static str {
 async fn serve_dashboard() -> axum::response::Html<String> {
     let html = std::fs::read_to_string("dashboard/templates/index.html")
         .unwrap_or_else(|_| "<h1>Dashboard not found</h1>".to_string());
+    axum::response::Html(html)
+}
+
+async fn serve_exp001() -> axum::response::Html<String> {
+    let html = std::fs::read_to_string("dashboard/templates/exp001.html")
+        .unwrap_or_else(|_| "<h1>EXP-001 page not found</h1>".to_string());
     axum::response::Html(html)
 }
 
@@ -870,10 +877,7 @@ pub struct RestGenerationRequest {
 
 fn parse_rest_uuid_list(ids: &[String]) -> Result<Vec<Uuid>, axum::http::StatusCode> {
     ids.iter()
-        .map(|s| {
-            Uuid::parse_str(s)
-                .map_err(|_| axum::http::StatusCode::BAD_REQUEST)
-        })
+        .map(|s| Uuid::parse_str(s).map_err(|_| axum::http::StatusCode::BAD_REQUEST))
         .collect()
 }
 
@@ -892,7 +896,13 @@ async fn ingest_observation_rest(
         return Err(axum::http::StatusCode::BAD_REQUEST);
     }
 
-    let author_type = match req.author_type.as_deref().unwrap_or("instrument").to_ascii_lowercase().as_str() {
+    let author_type = match req
+        .author_type
+        .as_deref()
+        .unwrap_or("instrument")
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "human" => AuthorType::Human,
         "instrument" => AuthorType::Instrument,
         "model" => AuthorType::Model,
@@ -956,7 +966,13 @@ async fn ingest_inference_rest(
     Json(req): Json<RestInferenceRequest>,
 ) -> Result<Json<RestIngestResponse>, axum::http::StatusCode> {
     let premises = parse_rest_uuid_list(&req.premises)?;
-    let author_type = match req.author_type.as_deref().unwrap_or("human").to_ascii_lowercase().as_str() {
+    let author_type = match req
+        .author_type
+        .as_deref()
+        .unwrap_or("human")
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "human" => AuthorType::Human,
         "instrument" => AuthorType::Instrument,
         "model" => AuthorType::Model,
@@ -964,7 +980,13 @@ async fn ingest_inference_rest(
         "software" => AuthorType::Software,
         _ => return Err(axum::http::StatusCode::BAD_REQUEST),
     };
-    let claim_type = match req.claim_type.as_deref().unwrap_or("descriptive").to_ascii_lowercase().as_str() {
+    let claim_type = match req
+        .claim_type
+        .as_deref()
+        .unwrap_or("descriptive")
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "causal" => ClaimType::Causal,
         "correlative" => ClaimType::Correlative,
         "predictive" => ClaimType::Predictive,
@@ -972,7 +994,13 @@ async fn ingest_inference_rest(
         "counterfactual" => ClaimType::Counterfactual,
         _ => return Err(axum::http::StatusCode::BAD_REQUEST),
     };
-    let claim_scope = match req.claim_scope.as_deref().unwrap_or("specific").to_ascii_lowercase().as_str() {
+    let claim_scope = match req
+        .claim_scope
+        .as_deref()
+        .unwrap_or("specific")
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "specific" => ClaimScope::Specific,
         "general" => ClaimScope::General,
         "universal" => ClaimScope::Universal,
@@ -988,7 +1016,13 @@ async fn ingest_inference_rest(
             measurement_type: f.measurement_type,
             location: None,
             timeframe: f.timeframe,
-            status: match f.status.as_deref().unwrap_or("pending").to_ascii_lowercase().as_str() {
+            status: match f
+                .status
+                .as_deref()
+                .unwrap_or("pending")
+                .to_ascii_lowercase()
+                .as_str()
+            {
                 "pending" => FalsifierStatus::Pending,
                 "in-progress" => FalsifierStatus::InProgress,
                 "completed-falsified" => FalsifierStatus::CompletedFalsified,
