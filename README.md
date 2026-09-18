@@ -448,6 +448,16 @@ See [CITATION.cff](CITATION.cff) for the preferred software citation,
 [TRADEMARKS.md](TRADEMARKS.md) for naming rules, and
 [LICENSE-POLICY.md](LICENSE-POLICY.md) for rights boundaries.
 
+## Independent review and Proof B
+
+Proof A is open to skeptical review. Start with the
+[review request](REVIEW_REQUEST.md), follow the
+[review protocol](REVIEW_PROTOCOL.md), and use the
+[review template](REVIEW_TEMPLATE.md) to publish a finding. The project keeps a
+public [known-limitations list](KNOWN_LIMITATIONS.md) and seeks an independent,
+pre-specified next experiment through the
+[Proof B collaboration brief](PROOF_B_COLLABORATION_BRIEF.md).
+
 ## Intention
 
 Witness is intended to help build a public memory that can show its work.
