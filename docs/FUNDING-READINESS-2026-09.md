@@ -1,5 +1,11 @@
 # Witness Funding Readiness — September 2026
 
+> **Superseded for external use.** The current, integrated materials are in the
+> [Funding Readiness Packet](../funding/README.md). This earlier assessment is
+> retained as a dated planning record because it documents the pre-review
+> funding posture. It must not be used to claim that its listed readiness gates
+> remain current.
+
 Witness may be fundable as open-source infrastructure for evidence provenance,
 AI accountability, scientific reproducibility, journalism, archives, and digital
 public infrastructure. The project does not yet have external users,

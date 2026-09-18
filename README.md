@@ -458,6 +458,13 @@ public [known-limitations list](KNOWN_LIMITATIONS.md) and seeks an independent,
 pre-specified next experiment through the
 [Proof B collaboration brief](PROOF_B_COLLABORATION_BRIEF.md).
 
+## Funding readiness
+
+The [Funding Readiness Packet](funding/README.md) defines the bounded Proof B
+funding request, budget, evidence and risk register, SBIR preparation draft,
+and PESOSE 2027 readiness plan. It does not claim an application, award,
+partnership, independent review, or funding.
+
 ## Intention
 
 Witness is intended to help build a public memory that can show its work.
