@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use Witness, cite the tagged release and this repository."
+title: "Witness"
+abstract: "An open-source prototype for keeping generated, observed, and inferred records distinct with inspectable provenance."
+type: software
+authors:
+  - family-names: McDonnell
+    given-names: Sean
+repository-code: "https://github.com/seanebones-lang/witness"
+license: MPL-2.0
+version: proof-a-v1
+date-released: 2026-09-18

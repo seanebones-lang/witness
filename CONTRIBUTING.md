@@ -44,6 +44,10 @@ Contributions are accepted under the
 [Mozilla Public License 2.0](LICENSE). By submitting a contribution, you agree
 to license it under those terms.
 
+Every commit in a pull request must carry a Developer Certificate of Origin
+sign-off (`git commit -s`). See [CONTRIBUTOR-PROVENANCE.md](CONTRIBUTOR-PROVENANCE.md)
+for the rights, provenance, and attribution policy.
+
 Opening an issue, filing a review, submitting a pull request, or appearing in
 an acknowledgement is **not** an endorsement of Witness, its constitution, a
 deployment, or another contributor's view. A contributor remains responsible

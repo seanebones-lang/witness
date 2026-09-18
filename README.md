@@ -443,6 +443,11 @@ MPL-covered source files remain available under the MPL when distributed, while
 the files may be combined with a larger work under different terms. See the
 license text for the complete terms.
 
+See [CITATION.cff](CITATION.cff) for the preferred software citation,
+[NOTICE](NOTICE) for project-origin attribution,
+[TRADEMARKS.md](TRADEMARKS.md) for naming rules, and
+[LICENSE-POLICY.md](LICENSE-POLICY.md) for rights boundaries.
+
 ## Intention
 
 Witness is intended to help build a public memory that can show its work.
