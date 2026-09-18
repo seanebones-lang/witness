@@ -1,8 +1,15 @@
 # Proof A — Infrastructure & Reproducibility (Frozen)
 
-## Commit SHAs
-- **Witness**: `2052dc2` (tagged `proof-a-v1`)
+## Frozen evidence and runtime commits
+- **Proof A artifact baseline (Witness)**: `2052dc2`
+- **Reconciled Witness runtime**: `7a1d372`
 - **Humanity Grid**: `3f863c9` (tagged `proof-a-v1`)
+
+The local `proof-a-v1` tag is moved only after the locked build, tests, lint,
+format check, source-bundle verifier, and EXP-001 route smoke test pass. It
+identifies this complete Witness proof state; the artifact baseline remains
+separately named so the displayed experiment can be traced to its original
+frozen files.
 
 ## How to Start Witness
 ```bash
