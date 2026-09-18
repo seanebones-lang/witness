@@ -31,3 +31,5 @@ Thumbs.db
 # Python verification tools
 __pycache__/
 *.py[cod]
+*.out
+*.db

@@ -11,6 +11,10 @@ pub struct Storage {
 
 impl Storage {
     pub async fn new(database_url: &str) -> Result<Self> {
+        // sqlx's sqlite connect does not create a missing file in all builds
+        // (SQLITE_CANTOPEN on fresh DBs). Ensure the file exists first so a
+        // fresh `Storage::new` works for both the server and the CLI.
+        ensure_sqlite_file(database_url)?;
         let pool = SqlitePool::connect(database_url).await?;
         sqlx::migrate!("./migrations").run(&pool).await?;
         Ok(Self {
@@ -302,6 +306,27 @@ impl Storage {
             source_uri: row.get("source_uri"),
         })
     }
+}
+
+/// Create an empty sqlite database file if it does not already exist, creating
+/// any missing parent directories. sqlx's `SqlitePool::connect` can fail with
+/// SQLITE_CANTOPEN when the file is absent, so we touch it up front.
+fn ensure_sqlite_file(database_url: &str) -> Result<()> {
+    // Accept: sqlite://path, sqlite:///abs/path, sqlite://./path
+    let raw = database_url.replace("sqlite://", "");
+    let path = raw.trim_start_matches('/');
+    if path.is_empty() || path == ":memory:" {
+        return Ok(());
+    }
+    let path = std::path::Path::new(path);
+    if path.exists() {
+        return Ok(());
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::File::create(path).map_err(crate::WitnessError::Io)?;
+    Ok(())
 }
 
 fn parse_uuid(value: &str, field: &str) -> Result<Uuid> {
