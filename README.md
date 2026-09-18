@@ -128,6 +128,9 @@ The dashboard template is in [`dashboard/`](dashboard/).
 
 ## Quick start
 
+For the shortest local setup, a clean review database, common failures, and the
+Humanity Grid Proof A replay path, see [INSTALL.md](INSTALL.md).
+
 ### Requirements
 
 - A current stable Rust toolchain with Cargo
