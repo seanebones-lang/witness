@@ -407,7 +407,7 @@ mod tests {
             Storage::new(&format!("sqlite://{}", path.display())).await,
             Err(crate::WitnessError::Migration(_))
         ));
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -454,7 +454,7 @@ mod tests {
         );
         storage.pool.close().await;
         drop(storage);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     async fn test_storage() -> (Storage, std::path::PathBuf) {
@@ -490,7 +490,7 @@ mod tests {
 
         storage.pool.close().await;
         drop(storage);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -523,7 +523,7 @@ mod tests {
 
         storage.pool.close().await;
         drop(storage);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -565,7 +565,7 @@ mod tests {
 
         storage.pool.close().await;
         drop(storage);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -618,7 +618,8 @@ mod tests {
             assert_eq!(storage.count_nodes(&filter).await.unwrap(), count as i64);
         }
         storage.pool.close().await;
-        std::fs::remove_file(path).unwrap();
+        drop(storage);
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -640,7 +641,8 @@ mod tests {
             0
         );
         storage.pool.close().await;
-        std::fs::remove_dir_all(directory).unwrap();
+        drop(storage);
+        crate::remove_test_path(&directory, true).await;
     }
 
     #[tokio::test]
