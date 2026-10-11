@@ -66,7 +66,6 @@ def main():
         private = Path(temp)
         os.chmod(private, 0o700)
         database = private / "demo.db"
-        database.touch()
         db_url = "sqlite://" + str(database)
         key = private / "demo.key"
         # Never print the private key or inherit a user's signing configuration.
@@ -115,6 +114,30 @@ def main():
                 initial = request(base_url, "/api/nodes")
                 if {n["id"] for n in initial["nodes"]} != {first, second}:
                     raise RuntimeError("Demo database identity check failed")
+
+                # Exercise the public HTTP adapters, not just service methods.
+                for value, measured_at in (("20", "not-a-date"), ("NaN", "2026-10-01T09:00:00Z"), (" ", "2026-10-01T09:00:00Z")):
+                    try:
+                        request(base_url, "/api/ingest/observation", {
+                            "quantity": "temperature", "value": value,
+                            "measured_at": measured_at, "instrument_id": "fixture", "author_id": "demo"
+                        })
+                    except HTTPError as error:
+                        if error.code != 400:
+                            raise
+                    else:
+                        raise RuntimeError("Malformed observation was unexpectedly accepted")
+                page_query = "{ observations(first: 1) { nodes { id } pageInfo { endCursor } } }"
+                page = request(base_url, "/graphql", {"query": page_query})
+                if page.get("errors"):
+                    raise RuntimeError("GraphQL first page failed")
+                cursor = page["data"]["observations"]["pageInfo"]["endCursor"]
+                next_query = "{ observations(first: 1, after: " + json.dumps(cursor) + ") { nodes { id } } }"
+                next_page = request(base_url, "/graphql", {"query": next_query})
+                if next_page.get("errors") or not next_page["data"]["observations"]["nodes"]:
+                    raise RuntimeError("GraphQL next page failed")
+                if page["data"]["observations"]["nodes"][0]["id"] == next_page["data"]["observations"]["nodes"][0]["id"]:
+                    raise RuntimeError("GraphQL cursor repeated the first record")
 
                 inference_body = {
                     "claim": "The mean of the two synthetic readings is 21 degrees Celsius.",
@@ -168,6 +191,8 @@ def main():
                           "signature_data_present_on_observations": True,
                           "signature_verified_by_dashboard": False,
                           "fixture_only": True, "isolated_temporary_database": True,
+                          "malformed_observations_rejected": True,
+                          "graphql_cursor_roundtrip_verified": True,
                           "inference_id": inference["id"], "generation_id": generation["id"],
                           "boundary": "Synthetic fixtures. Integrity and declared links do not establish truth, identity, or scientific validity."}
                 if args.report:

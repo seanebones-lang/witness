@@ -160,11 +160,18 @@ impl QueryRoot {
         let limit = first.unwrap_or(50).clamp(1, 100) as i64;
         let offset = after
             .as_ref()
-            .and_then(|s| s.parse::<i64>().ok())
-            .unwrap_or(0)
-            .max(0);
+            .map(|cursor| {
+                cursor.parse::<i64>().map_err(|_| {
+                    async_graphql::Error::new("after must be an offset cursor returned by pageInfo")
+                })
+            })
+            .transpose()?
+            .unwrap_or(0);
+        if offset < 0 {
+            return Err("after must not be negative".into());
+        }
 
-        let filter = filter.map(convert_filter).unwrap_or_default();
+        let filter = filter.map(convert_filter).transpose()?.unwrap_or_default();
         let nodes = state
             .storage
             .query_nodes(&filter, limit + 1, offset)
@@ -182,10 +189,9 @@ impl QueryRoot {
             page_info: GQLPageInfo {
                 has_next_page: has_next,
                 has_previous_page: offset > 0,
-                start_cursor: nodes.first().map(|n: &GQLProvenanceNode| n.id.to_string())
-                    as Option<String>,
-                end_cursor: nodes.last().map(|n: &GQLProvenanceNode| n.id.to_string())
-                    as Option<String>,
+                start_cursor: (!nodes.is_empty()).then(|| offset.to_string()),
+                end_cursor: (!nodes.is_empty())
+                    .then(|| offset.saturating_add(nodes.len() as i64).to_string()),
             },
             total_count: total,
             nodes,
@@ -199,7 +205,7 @@ impl QueryRoot {
         first: Option<i32>,
         after: Option<String>,
     ) -> async_graphql::Result<GQLNodeConnection> {
-        let mut f = filter.map(convert_filter).unwrap_or_default();
+        let mut f = filter.map(convert_filter).transpose()?.unwrap_or_default();
         f.epistemic_types = Some(vec![EpistemicType::Observed]);
         self.nodes(ctx, Some(f.into()), first, after).await
     }
@@ -211,7 +217,7 @@ impl QueryRoot {
         first: Option<i32>,
         after: Option<String>,
     ) -> async_graphql::Result<GQLNodeConnection> {
-        let mut f = filter.map(convert_filter).unwrap_or_default();
+        let mut f = filter.map(convert_filter).transpose()?.unwrap_or_default();
         f.epistemic_types = Some(vec![EpistemicType::Inferred]);
         self.nodes(ctx, Some(f.into()), first, after).await
     }
@@ -223,7 +229,7 @@ impl QueryRoot {
         first: Option<i32>,
         after: Option<String>,
     ) -> async_graphql::Result<GQLNodeConnection> {
-        let mut f = filter.map(convert_filter).unwrap_or_default();
+        let mut f = filter.map(convert_filter).transpose()?.unwrap_or_default();
         f.epistemic_types = Some(vec![EpistemicType::Generated]);
         self.nodes(ctx, Some(f.into()), first, after).await
     }
@@ -414,23 +420,33 @@ pub struct SubscriptionRoot;
 //     }
 // }
 
-fn convert_filter(f: GQLQueryFilter) -> witness_core::types::QueryFilter {
-    witness_core::types::QueryFilter {
+fn convert_filter(f: GQLQueryFilter) -> async_graphql::Result<witness_core::types::QueryFilter> {
+    let date_range = match (f.date_from, f.date_to) {
+        (None, None) => None,
+        (Some(from), Some(to)) => {
+            let from = from
+                .parse()
+                .map_err(|_| async_graphql::Error::new("dateFrom must be RFC 3339"))?;
+            let to = to
+                .parse()
+                .map_err(|_| async_graphql::Error::new("dateTo must be RFC 3339"))?;
+            if from > to {
+                return Err("dateFrom must not be after dateTo".into());
+            }
+            Some(witness_core::types::DateRange { from, to })
+        }
+        _ => return Err("dateFrom and dateTo must be supplied together".into()),
+    };
+    Ok(witness_core::types::QueryFilter {
         epistemic_types: f.epistemic_types,
         domains: f.domains,
         authors: f.authors,
-        date_range: f
-            .date_from
-            .zip(f.date_to)
-            .map(|(from, to)| witness_core::types::DateRange {
-                from: from.parse().unwrap_or_else(|_| chrono::Utc::now()),
-                to: to.parse().unwrap_or_else(|_| chrono::Utc::now()),
-            }),
+        date_range,
         labels: f.labels,
         has_falsifiers: f.has_falsifiers,
-        parent_of: f.parent_of.and_then(|id| uuid::Uuid::parse_str(&id).ok()),
-        child_of: f.child_of.and_then(|id| uuid::Uuid::parse_str(&id).ok()),
-    }
+        parent_of: f.parent_of.map(|id| Uuid::parse_str(&id)).transpose()?,
+        child_of: f.child_of.map(|id| Uuid::parse_str(&id)).transpose()?,
+    })
 }
 
 impl From<witness_core::types::QueryFilter> for GQLQueryFilter {
@@ -612,7 +628,7 @@ async fn get_nodes(
         .and_then(|s| s.parse::<i64>().ok())
         .unwrap_or(0)
         .max(0);
-    let page = offset / limit + 1;
+    let page = (offset / limit).saturating_add(1);
 
     let epistemic_type = match node_type {
         "observed" => EpistemicType::Observed,
@@ -881,12 +897,26 @@ fn parse_rest_uuid_list(ids: &[String]) -> Result<Vec<Uuid>, axum::http::StatusC
         .collect()
 }
 
+fn ingest_status(error: witness_core::WitnessError) -> axum::http::StatusCode {
+    match error {
+        witness_core::WitnessError::Validation(_) => axum::http::StatusCode::BAD_REQUEST,
+        _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
 async fn ingest_observation_rest(
     State(state): State<Arc<AppState>>,
     Json(req): Json<RestObservationRequest>,
 ) -> Result<Json<RestIngestResponse>, axum::http::StatusCode> {
     // value: numeric if parseable, else text
     let value_numeric = req.value.parse::<f64>().ok();
+    let measured_at = req
+        .measured_at
+        .as_deref()
+        .map(str::parse::<chrono::DateTime<Utc>>)
+        .transpose()
+        .map_err(|_| axum::http::StatusCode::BAD_REQUEST)?
+        .unwrap_or_else(Utc::now);
     let value_text = if value_numeric.is_some() {
         None
     } else {
@@ -926,11 +956,7 @@ async fn ingest_observation_rest(
             description: None,
             altitude_m: None,
         },
-        measured_at: req
-            .measured_at
-            .as_deref()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or_else(Utc::now),
+        measured_at,
         instrument: InstrumentRef {
             id: req.instrument_id,
             name: req.instrument_name,
@@ -957,7 +983,7 @@ async fn ingest_observation_rest(
             None,
         )
         .await
-        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(ingest_status)?;
     Ok(Json(node.into()))
 }
 
@@ -1011,26 +1037,28 @@ async fn ingest_inference_rest(
         .falsifiers
         .unwrap_or_default()
         .into_iter()
-        .map(|f| Falsifier {
-            description: f.description,
-            measurement_type: f.measurement_type,
-            location: None,
-            timeframe: f.timeframe,
-            status: match f
-                .status
-                .as_deref()
-                .unwrap_or("pending")
-                .to_ascii_lowercase()
-                .as_str()
-            {
-                "pending" => FalsifierStatus::Pending,
-                "in-progress" => FalsifierStatus::InProgress,
-                "completed-falsified" => FalsifierStatus::CompletedFalsified,
-                "completed-confirmed" => FalsifierStatus::CompletedConfirmed,
-                _ => FalsifierStatus::Pending,
-            },
+        .map(|f| {
+            Ok(Falsifier {
+                description: f.description,
+                measurement_type: f.measurement_type,
+                location: None,
+                timeframe: f.timeframe,
+                status: match f
+                    .status
+                    .as_deref()
+                    .unwrap_or("pending")
+                    .to_ascii_lowercase()
+                    .as_str()
+                {
+                    "pending" => FalsifierStatus::Pending,
+                    "in-progress" => FalsifierStatus::InProgress,
+                    "completed-falsified" => FalsifierStatus::CompletedFalsified,
+                    "completed-confirmed" => FalsifierStatus::CompletedConfirmed,
+                    _ => return Err(axum::http::StatusCode::BAD_REQUEST),
+                },
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, axum::http::StatusCode>>()?;
 
     let derivation = Derivation {
         premises,
@@ -1062,10 +1090,7 @@ async fn ingest_inference_rest(
             None,
         )
         .await
-        .map_err(|error| match error {
-            witness_core::WitnessError::Validation(_) => axum::http::StatusCode::BAD_REQUEST,
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        })?;
+        .map_err(ingest_status)?;
     Ok(Json(node.into()))
 }
 
@@ -1130,4 +1155,197 @@ async fn main() -> witness_core::Result<()> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 
     run_server(&database_url, &host, port).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    async fn state() -> Arc<AppState> {
+        Arc::new(AppState {
+            storage: Arc::new(Storage::new("sqlite::memory:").await.unwrap()),
+        })
+    }
+    fn observation() -> serde_json::Value {
+        serde_json::json!({"quantity":"temperature","value":"20","unit":"celsius","measured_at":"2026-10-01T09:00:00Z","instrument_id":"fixture","author_id":"test"})
+    }
+    async fn observe(state: &Arc<AppState>) -> RestIngestResponse {
+        ingest_observation_rest(
+            State(state.clone()),
+            Json(serde_json::from_value(observation()).unwrap()),
+        )
+        .await
+        .unwrap()
+        .0
+    }
+    fn schema(state: &Arc<AppState>) -> WitnessSchema {
+        Schema::build(QueryRoot, MutationRoot, EmptySubscription)
+            .data(state.as_ref().clone())
+            .finish()
+    }
+
+    #[tokio::test]
+    async fn rest_rejects_bad_measurements_without_storing_them() {
+        let state = state().await;
+        for (field, value) in [
+            ("measured_at", "not-a-date"),
+            ("value", "NaN"),
+            ("value", "inf"),
+            ("value", " "),
+            ("quantity", ""),
+            ("instrument_id", ""),
+        ] {
+            let mut body = observation();
+            body[field] = value.into();
+            let result = ingest_observation_rest(
+                State(state.clone()),
+                Json(serde_json::from_value(body).unwrap()),
+            )
+            .await;
+            assert!(
+                matches!(result, Err(axum::http::StatusCode::BAD_REQUEST)),
+                "{field}={value} was not rejected"
+            );
+        }
+        assert_eq!(
+            state
+                .storage
+                .count_nodes(&QueryFilter::default())
+                .await
+                .unwrap(),
+            0
+        );
+        let record = observe(&state).await;
+        let stored = state
+            .storage
+            .get_node(Uuid::parse_str(&record.id).unwrap())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            stored.payload["measurement"]["measured_at"],
+            "2026-10-01T09:00:00Z"
+        );
+    }
+
+    #[tokio::test]
+    async fn inference_rejects_unknown_falsifier_status() {
+        let state = state().await;
+        let body = serde_json::json!({"claim":"fixture","methodology":"fixture","premises":[],"author_id":"test","falsifiers":[{"description":"review","measurement_type":"review","status":"typo-status"}]});
+        let result = ingest_inference_rest(
+            State(state.clone()),
+            Json(serde_json::from_value(body).unwrap()),
+        )
+        .await;
+        assert!(matches!(result, Err(axum::http::StatusCode::BAD_REQUEST)));
+        assert_eq!(
+            state
+                .storage
+                .count_nodes(&QueryFilter::default())
+                .await
+                .unwrap(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn graphql_cursor_advances_and_bad_cursors_or_filters_fail() {
+        let state = state().await;
+        for _ in 0..3 {
+            observe(&state).await;
+        }
+        let schema = schema(&state);
+        let response = schema.execute("{ observations(first: 2) { totalCount nodes { id } pageInfo { endCursor hasNextPage } } }").await;
+        assert!(response.errors.is_empty(), "{:?}", response.errors);
+        let first = response.data.into_json().unwrap()["observations"].clone();
+        let cursor = first["pageInfo"]["endCursor"].as_str().unwrap();
+        assert_eq!(first["nodes"].as_array().unwrap().len(), 2);
+        assert_eq!(first["pageInfo"]["hasNextPage"], true);
+        let response = schema.execute(format!("{{ observations(first: 2, after: \"{cursor}\") {{ totalCount nodes {{ id }} pageInfo {{ hasNextPage hasPreviousPage }} }} }}")).await;
+        assert!(response.errors.is_empty(), "{:?}", response.errors);
+        let next = response.data.into_json().unwrap()["observations"].clone();
+        assert_eq!(next["nodes"].as_array().unwrap().len(), 1);
+        assert_eq!(next["totalCount"], 3);
+        assert_eq!(next["pageInfo"]["hasNextPage"], false);
+        assert_eq!(next["pageInfo"]["hasPreviousPage"], true);
+        assert!(
+            !first["nodes"]
+                .as_array()
+                .unwrap()
+                .contains(&next["nodes"][0])
+        );
+        for query in [
+            r#"{nodes(after:"garbage"){totalCount}}"#,
+            r#"{nodes(after:"-1"){totalCount}}"#,
+            r#"{nodes(filter:{parentOf:"not-a-uuid"}){totalCount}}"#,
+            r#"{nodes(filter:{dateFrom:"bad",dateTo:"2026-10-01T00:00:00Z"}){totalCount}}"#,
+            r#"{nodes(filter:{dateFrom:"2026-10-01T00:00:00Z"}){totalCount}}"#,
+        ] {
+            assert!(
+                !schema.execute(query).await.errors.is_empty(),
+                "invalid query succeeded: {query}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn relationship_and_falsifier_filters_match_counts() {
+        let state = state().await;
+        let first = observe(&state).await;
+        observe(&state).await;
+        let body = serde_json::json!({"claim":"fixture","methodology":"fixture","premises":[first.id],"author_id":"test","falsifiers":[{"description":"review","measurement_type":"review"}]});
+        let inference = ingest_inference_rest(
+            State(state.clone()),
+            Json(serde_json::from_value(body).unwrap()),
+        )
+        .await
+        .unwrap()
+        .0;
+        let schema = schema(&state);
+        for (filter, id, expected) in [
+            (
+                format!("parentOf:\"{}\"", inference.id),
+                first.id.as_str(),
+                1,
+            ),
+            (
+                format!("childOf:\"{}\"", first.id),
+                inference.id.as_str(),
+                1,
+            ),
+            ("hasFalsifiers:true".into(), inference.id.as_str(), 1),
+            ("hasFalsifiers:false".into(), "", 2),
+            (
+                format!("childOf:\"{}\",hasFalsifiers:true", first.id),
+                inference.id.as_str(),
+                1,
+            ),
+        ] {
+            let response = schema
+                .execute(format!(
+                    "{{nodes(filter:{{{filter}}}){{totalCount nodes{{id}}}}}}"
+                ))
+                .await;
+            assert!(response.errors.is_empty(), "{:?}", response.errors);
+            let data = response.data.into_json().unwrap()["nodes"].clone();
+            assert_eq!(data["totalCount"], expected);
+            assert_eq!(data["nodes"].as_array().unwrap().len(), expected as usize);
+            if !id.is_empty() {
+                assert_eq!(data["nodes"][0]["id"], id);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn extreme_rest_offset_does_not_overflow() {
+        let state = state().await;
+        let params = HashMap::from([
+            ("limit".into(), "1".into()),
+            ("offset".into(), i64::MAX.to_string()),
+        ]);
+        let response = get_nodes(State(state), Query(params)).await.unwrap().0;
+        assert!(response.nodes.is_empty());
+        assert_eq!(response.page, i64::MAX);
+    }
 }
