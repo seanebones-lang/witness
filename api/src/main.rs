@@ -466,10 +466,28 @@ impl From<witness_core::types::QueryFilter> for GQLQueryFilter {
 }
 
 pub async fn run_server(database_url: &str, host: &str, port: u16) -> CoreResult<()> {
+    let address = if host == "localhost" {
+        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+    } else {
+        host.parse::<std::net::IpAddr>().map_err(|_| {
+            witness_core::WitnessError::Validation(
+                "HOST must be localhost or a loopback IP address".into(),
+            )
+        })?
+    };
+    if !address.is_loopback() {
+        return Err(witness_core::WitnessError::Validation(
+            "Witness has unauthenticated APIs and only permits a loopback bind".into(),
+        ));
+    }
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("info,witness=debug"))
         .with(tracing_subscriber::fmt::layer().json())
-        .init();
+        .try_init()
+        .ok();
+
+    let listener = TcpListener::bind((address, port)).await?;
+    let local_port = listener.local_addr()?.port();
 
     let storage = Arc::new(Storage::new(database_url).await?);
     let state = Arc::new(AppState { storage });
@@ -489,6 +507,7 @@ pub async fn run_server(database_url: &str, host: &str, port: u16) -> CoreResult
         .route("/health", get(health_check))
         // REST API endpoints
         .route("/api/nodes", get(get_nodes))
+        .route("/api/nodes/{id}", get(get_node))
         .route("/api/domains", get(get_domains))
         .route("/api/nodes/{id}/children", get(get_children))
         .route("/api/nodes/{id}/falsifiers", get(get_falsifiers))
@@ -510,19 +529,82 @@ pub async fn run_server(database_url: &str, host: &str, port: u16) -> CoreResult
         // Dashboard
         .route("/", get(serve_dashboard))
         .route("/experiments/EXP-001", get(serve_exp001))
-        .with_state(state);
-
-    if host != "127.0.0.1" && host != "localhost" && host != "::1" {
-        tracing::warn!(
-            host,
-            "Witness has unauthenticated mutation endpoints and is not safe for network exposure"
-        );
-    }
-    let listener = TcpListener::bind(format!("{}:{}", host, port)).await?;
+        .route(
+            "/assets/witness.css",
+            get(|| async {
+                (
+                    [(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")],
+                    include_str!("../../dashboard/assets/witness.css"),
+                )
+            }),
+        )
+        .route(
+            "/assets/alpine.js",
+            get(|| async {
+                (
+                    [(
+                        axum::http::header::CONTENT_TYPE,
+                        "application/javascript; charset=utf-8",
+                    )],
+                    include_str!("../../dashboard/assets/alpine.js"),
+                )
+            }),
+        )
+        .with_state(state)
+        .layer(axum::middleware::from_fn_with_state(
+            local_port,
+            local_request_guard,
+        ));
     tracing::info!("Witness API listening on http://{}:{}", host, port);
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+fn local_authority(authority: &str, port: u16) -> bool {
+    let Ok(authority) = authority.parse::<axum::http::uri::Authority>() else {
+        return false;
+    };
+    let hostname = authority.host().trim_matches(['[', ']']);
+    let loopback = hostname.eq_ignore_ascii_case("localhost")
+        || hostname
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback());
+    loopback && authority.port_u16().unwrap_or(80) == port
+}
+
+async fn local_request_guard(
+    State(port): State<u16>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    let authority = request
+        .headers()
+        .get(axum::http::header::HOST)
+        .and_then(|value| value.to_str().ok());
+    if !authority.is_some_and(|host| local_authority(host, port)) {
+        return axum::http::StatusCode::FORBIDDEN.into_response();
+    }
+    if let Some(origin) = request.headers().get(axum::http::header::ORIGIN) {
+        let allowed = origin
+            .to_str()
+            .ok()
+            .and_then(|value| value.parse::<axum::http::Uri>().ok())
+            .is_some_and(|origin| {
+                origin.scheme_str() == Some("http")
+                    && origin
+                        .authority()
+                        .is_some_and(|authority| local_authority(authority.as_str(), port))
+                    && origin
+                        .path_and_query()
+                        .is_none_or(|path| path.as_str() == "/")
+            });
+        if !allowed {
+            return axum::http::StatusCode::FORBIDDEN.into_response();
+        }
+    }
+    next.run(request).await
 }
 
 async fn graphql_playground() -> axum::response::Html<String> {
@@ -538,15 +620,11 @@ async fn health_check() -> &'static str {
 }
 
 async fn serve_dashboard() -> axum::response::Html<String> {
-    let html = std::fs::read_to_string("dashboard/templates/index.html")
-        .unwrap_or_else(|_| "<h1>Dashboard not found</h1>".to_string());
-    axum::response::Html(html)
+    axum::response::Html(include_str!("../../dashboard/templates/index.html").to_owned())
 }
 
 async fn serve_exp001() -> axum::response::Html<String> {
-    let html = std::fs::read_to_string("dashboard/templates/exp001.html")
-        .unwrap_or_else(|_| "<h1>EXP-001 page not found</h1>".to_string());
-    axum::response::Html(html)
+    axum::response::Html(include_str!("../../dashboard/templates/exp001.html").to_owned())
 }
 
 // REST API types
@@ -610,6 +688,40 @@ pub struct DiffResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DiffsResponse {
     pub diffs: Vec<DiffResponse>,
+}
+
+impl From<ProvenanceNode> for NodeResponse {
+    fn from(n: ProvenanceNode) -> Self {
+        NodeResponse {
+            id: n.id.to_string(),
+            cid: n.cid.0,
+            epistemic_type: format!("{:?}", n.epistemic_type),
+            payload: n.payload,
+            author: serde_json::to_value(n.author).unwrap_or_default(),
+            timestamp: n.timestamp.to_rfc3339(),
+            parents: n.parents.iter().map(|p| p.to_string()).collect(),
+            labels: n.labels,
+            signature: n
+                .signature
+                .map(|s| serde_json::to_value(s).unwrap_or_default()),
+            domain: n.domain,
+            source_uri: n.source_uri,
+        }
+    }
+}
+
+async fn get_node(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<NodeResponse>, axum::http::StatusCode> {
+    let id = Uuid::parse_str(&id).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
+    let node = state
+        .storage
+        .get_node(id)
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(axum::http::StatusCode::NOT_FOUND)?;
+    Ok(Json(node.into()))
 }
 
 // REST API handlers
@@ -1139,7 +1251,7 @@ async fn ingest_generation_rest(
             None,
         )
         .await
-        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(ingest_status)?;
     Ok(Json(node.into()))
 }
 
@@ -1183,6 +1295,77 @@ mod tests {
         Schema::build(QueryRoot, MutationRoot, EmptySubscription)
             .data(state.as_ref().clone())
             .finish()
+    }
+
+    #[tokio::test]
+    async fn direct_record_lookup_preserves_type_and_reports_missing_or_invalid_ids() {
+        let state = state().await;
+        let record = observe(&state).await;
+        let Json(found) = get_node(State(state.clone()), Path(record.id.clone()))
+            .await
+            .unwrap();
+        assert_eq!(found.id, record.id);
+        assert_eq!(found.epistemic_type, "Observed");
+        assert_eq!(
+            get_node(State(state.clone()), Path("bad".to_owned()))
+                .await
+                .unwrap_err(),
+            axum::http::StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            get_node(State(state), Path(Uuid::new_v4().to_string()))
+                .await
+                .unwrap_err(),
+            axum::http::StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn local_server_rejects_remote_hosts_and_cross_origin_requests() {
+        use tower::ServiceExt;
+        let port = 18080;
+        let app = Router::new().route("/health", get(health_check)).layer(
+            axum::middleware::from_fn_with_state(port, local_request_guard),
+        );
+        for (host, origin, expected) in [
+            ("127.0.0.1:18080", None, 200),
+            ("localhost:18080", Some("http://localhost:18080"), 200),
+            ("[::1]:18080", Some("http://[::1]:18080"), 200),
+            ("example.com:18080", None, 403),
+            ("localhost.example.com:18080", None, 403),
+            ("127.0.0.1:18081", None, 403),
+            ("127.0.0.1:18080", Some("http://example.com"), 403),
+            ("127.0.0.1:18080", Some("null"), 403),
+            ("127.0.0.1:18080", Some("http://localhost:18080/extra"), 403),
+        ] {
+            let mut request = axum::http::Request::builder()
+                .uri("/health")
+                .header("Host", host);
+            if let Some(origin) = origin {
+                request = request.header("Origin", origin);
+            }
+            let response = app
+                .clone()
+                .oneshot(request.body(axum::body::Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status().as_u16(),
+                expected,
+                "host={host} origin={origin:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn remote_bind_is_rejected_before_creating_a_database() {
+        let path = std::env::temp_dir().join(format!("witness-remote-{}.db", Uuid::new_v4()));
+        let result = run_server(&format!("sqlite://{}", path.display()), "0.0.0.0", 0).await;
+        assert!(matches!(
+            result,
+            Err(witness_core::WitnessError::Validation(_))
+        ));
+        assert!(!path.exists());
     }
 
     #[tokio::test]

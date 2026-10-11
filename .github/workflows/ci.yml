@@ -21,6 +21,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify locked dashboard assets
+        run: |
+          npm ci --ignore-scripts --prefix dashboard
+          npm audit --prefix dashboard
+          npm run build --prefix dashboard
+          git diff --exit-code -- dashboard/assets
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Build
@@ -30,6 +39,6 @@ jobs:
       - name: Check isolated first-use demo
         run: python3 scripts/launch_demo.py --skip-build --check-only --port 18081
       - name: Dashboard request ordering regressions
-        run: node --test dashboard/tests/request-order.test.cjs
+        run: node --test dashboard/tests/*.test.cjs
       - name: Lint
         run: cargo clippy --workspace --all-targets --locked -- -D warnings

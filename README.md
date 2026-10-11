@@ -192,9 +192,7 @@ override their defaults:
 DATABASE_URL=sqlite://./witness.db PORT=8080 cargo run --package witness-api
 ```
 
-`HOST` exists for controlled development only. Setting it to a non-loopback
-address produces a warning and does not add authentication, authorization, rate
-limits, transport security, or production support.
+`HOST` accepts only `localhost` or a loopback IP address. Non-loopback binds are rejected before database creation. Host and browser Origin checks do not authenticate local programs or provide production deployment support.
 
 ### REST ingest endpoints
 
@@ -487,3 +485,11 @@ That is the standard this project intends to earn.
 The fuller and more forceful statement of that intention is preserved in
 [The Witness Manifesto](MANIFESTO.md). Future changes to the product should be
 judged against it.
+
+### Local server and bundled dashboard
+
+The unauthenticated API binds only to loopback addresses. Host and browser Origin checks reject foreign sites; this does not authenticate other local programs. Use a trusted single-user machine and a disposable database when reviewing untrusted examples. Public deployment requires a separately designed authenticated gateway.
+
+The dashboard CSS and Alpine JavaScript are bundled in the Rust binary: no CDN requests or repository working directory are required. To rebuild the committed assets, run `npm ci --ignore-scripts --prefix dashboard` and `npm run build --prefix dashboard`. Upstream licenses are preserved in `dashboard/assets`.
+
+Signatures now sort author metadata keys before serialization. Empty-metadata signatures retain their previous encoding. Historical signatures with populated metadata used unordered map serialization and may fail verification after reload; preserve original exports and signing bytes where available, and never silently re-sign them as historical originals. CIDs and signatures establish content integrity against trusted references, not scientific validity, trusted identity, or tamper-proof local storage.
