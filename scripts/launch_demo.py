@@ -93,6 +93,13 @@ def main():
 
         first = observe(20, "2026-10-01T09:00:00Z")
         second = observe(22, "2026-10-01T10:00:00Z")
+        invalid_inference = subprocess.run(
+            [str(cli), "--database", db_url, "infer", "--claim", "Synthetic invalid fixture",
+             "--methodology", "Must not discard the malformed premise", "--premise", first,
+             "--premise", "not-a-uuid", "--author-id", "nexteleven-demo"],
+            cwd=ROOT, env=env, capture_output=True, text=True)
+        if invalid_inference.returncode == 0:
+            raise RuntimeError("CLI accepted an inference with a malformed premise ID")
         server_env = dict(env, DATABASE_URL=db_url, HOST="127.0.0.1", PORT=str(args.port))
         with (private / "server.log").open("w") as log:
             server = subprocess.Popen([str(api)], cwd=ROOT, env=server_env,
@@ -192,6 +199,7 @@ def main():
                           "signature_verified_by_dashboard": False,
                           "fixture_only": True, "isolated_temporary_database": True,
                           "malformed_observations_rejected": True,
+                          "malformed_cli_premise_rejected": True,
                           "graphql_cursor_roundtrip_verified": True,
                           "inference_id": inference["id"], "generation_id": generation["id"],
                           "boundary": "Synthetic fixtures. Integrity and declared links do not establish truth, identity, or scientific validity."}

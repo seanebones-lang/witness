@@ -93,7 +93,7 @@ enum Commands {
         #[arg(long)]
         methodology: String,
         #[arg(long)]
-        premise: Vec<String>,
+        premise: Vec<Uuid>,
         #[arg(long)]
         author_id: String,
         #[arg(long)]
@@ -285,13 +285,8 @@ async fn main() -> Result<()> {
                 metadata: std::collections::HashMap::new(),
             };
 
-            let premises: Vec<Uuid> = premise
-                .iter()
-                .filter_map(|p| Uuid::parse_str(p).ok())
-                .collect();
-
             let derivation = Derivation {
-                premises,
+                premises: premise,
                 methodology,
                 model_ref: None,
                 parameters: std::collections::HashMap::new(),

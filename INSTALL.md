@@ -99,6 +99,8 @@ rejected rather than replaced with the current time. Omitting that optional
 REST field still records the ingestion time. Measurement numbers must be finite,
 values must not be blank, and quantity and instrument ID are required.
 Unsupported falsifier statuses return `400` rather than silently becoming Pending.
+CLI `infer --premise` arguments must be UUIDs. Invalid IDs fail before opening
+the database; valid IDs must refer to existing records before the inference is saved.
 
 GraphQL `pageInfo.endCursor` is the numeric offset for the next request's `after`.
 Ordering uses timestamp and record ID; these cursors are not a snapshot and new
