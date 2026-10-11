@@ -165,11 +165,9 @@ cargo build --workspace
 cargo test --workspace
 ```
 
-Create an empty local database file and ingest one observation:
+Ingest one observation into a local database (created automatically):
 
 ```bash
-touch witness.db
-
 cargo run --package witness-ingestion -- \
   observe \
   --quantity air_temperature \
