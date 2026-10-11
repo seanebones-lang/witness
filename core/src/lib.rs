@@ -8,9 +8,9 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum WitnessError {
     #[error("Storage error: {0}")]
-    Storage(#[from] sqlx::Error),
+    Storage(#[from] sqlx_core::Error),
     #[error("Migration error: {0}")]
-    Migration(#[from] sqlx::migrate::MigrateError),
+    Migration(#[from] sqlx_core::migrate::MigrateError),
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
     #[error("Signing error: {0}")]

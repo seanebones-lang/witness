@@ -61,6 +61,14 @@ Witness currently includes:
 - SHA-256 content identifiers for payloads.
 - Optional Ed25519 signatures and signature verification.
 - SQLite storage and migrations.
+
+The database build uses only SQLx's pinned SQLite components (0.8.6), with
+embedded migrations and bundled SQLite. It does not include the unused IPFS,
+MySQL, or PostgreSQL stacks. `cargo audit --deny warnings` checks the committed
+lockfile in CI; a clean advisory check is not a guarantee of vulnerability-free
+software. Migration SQL remains unchanged. When adding a migration, register
+it in `core/src/storage.rs`; a regression compares the embedded inventory and
+checksums against the migration directory.
 - Append-only node insertion: an existing node ID cannot be silently replaced.
 - A command-line ingestion tool for individual observations, CSV, JSONL,
   inferences, and generated material.

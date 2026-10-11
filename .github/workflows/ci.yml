@@ -10,9 +10,16 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  SQLX_OFFLINE: "true"
 
 jobs:
+  dependencies:
+    name: Rust dependency advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo audit --deny warnings
   rust:
     name: Rust workspace
     runs-on: ubuntu-latest
