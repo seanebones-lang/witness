@@ -21,8 +21,15 @@ jobs:
       - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo audit --deny warnings
   rust:
-    name: Rust workspace
-    runs-on: ubuntu-latest
+    name: Rust workspace (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

@@ -58,10 +58,11 @@ impl Storage {
             std::fs::create_dir_all(parent)?;
         }
         let pool = SqlitePool::connect_with(options).await?;
-        sqlx_core::migrate::Migrator::new(EmbeddedMigrations)
-            .await?
-            .run(&pool)
-            .await?;
+        let migrator = sqlx_core::migrate::Migrator::new(EmbeddedMigrations).await?;
+        if let Err(error) = migrator.run(&pool).await {
+            pool.close().await;
+            return Err(error.into());
+        }
         Ok(Self {
             pool: Arc::new(pool),
         })
@@ -486,6 +487,7 @@ mod tests {
         let result = storage.get_node(id).await;
         assert!(matches!(result, Err(crate::WitnessError::Serialization(_))));
 
+        storage.pool.close().await;
         drop(storage);
         std::fs::remove_file(path).unwrap();
     }
@@ -518,6 +520,7 @@ mod tests {
         let result = storage.get_node(id).await;
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
 
+        storage.pool.close().await;
         drop(storage);
         std::fs::remove_file(path).unwrap();
     }
@@ -559,6 +562,7 @@ mod tests {
         assert_eq!(nodes.len(), 1);
         assert_eq!(count, nodes.len() as i64);
 
+        storage.pool.close().await;
         drop(storage);
         std::fs::remove_file(path).unwrap();
     }
@@ -624,9 +628,12 @@ mod tests {
             .await
             .unwrap();
         assert!(path.is_file());
-        let relative_shadow =
-            std::path::PathBuf::from(path.to_string_lossy().trim_start_matches('/'));
-        assert!(!relative_shadow.exists());
+        #[cfg(unix)]
+        {
+            let relative_shadow =
+                std::path::PathBuf::from(path.to_string_lossy().trim_start_matches('/'));
+            assert!(!relative_shadow.exists());
+        }
         assert_eq!(
             storage.count_nodes(&QueryFilter::default()).await.unwrap(),
             0
