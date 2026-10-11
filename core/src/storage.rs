@@ -453,6 +453,7 @@ mod tests {
             serde_json::to_value(&diff).unwrap()
         );
         storage.pool.close().await;
+        drop(storage);
         std::fs::remove_file(path).unwrap();
     }
 
