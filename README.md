@@ -500,4 +500,8 @@ The unauthenticated API binds only to loopback addresses. Host and browser Origi
 
 The dashboard CSS and Alpine JavaScript are bundled in the Rust binary: no CDN requests or repository working directory are required. To rebuild the committed assets, run `npm ci --ignore-scripts --prefix dashboard` and `npm run build --prefix dashboard`. Upstream licenses are preserved in `dashboard/assets`.
 
+The optional GraphiQL developer explorer at `/graphql` loads upstream assets
+from `esm.sh` and requires network access. The dashboard and programmatic APIs
+operate independently of that explorer.
+
 Signatures now sort author metadata keys before serialization. Empty-metadata signatures retain their previous encoding. Historical signatures with populated metadata used unordered map serialization and may fail verification after reload; preserve original exports and signing bytes where available, and never silently re-sign them as historical originals. CIDs and signatures establish content integrity against trusted references, not scientific validity, trusted identity, or tamper-proof local storage.

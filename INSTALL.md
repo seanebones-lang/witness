@@ -42,6 +42,9 @@ Your existing `witness.db` is not used. Choose another port with `--port 4361` i
 4360 is occupied. Dashboard styling and interactivity are bundled in the binary;
 no CDN requests or repository working directory are needed at runtime. Building
 from a fresh clone still requires downloading Rust dependencies.
+The optional GraphiQL developer explorer loads upstream assets from `esm.sh`;
+it needs network access. The dashboard and the API endpoints do not depend on
+that explorer.
 
 For an automated first-use check after building:
 
