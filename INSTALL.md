@@ -100,6 +100,14 @@ from the source checkout, then call `witness-ingestion --help` from any director
 open a database, and creates mode-0600 key files on Unix. On other platforms,
 protect the key using your account's file permissions. Never commit a key.
 
+Before upgrading an existing database, stop the server and keep a separate
+backup. Migration checksums must match the embedded migration bytes. Older
+Windows checkouts may have converted SQL line endings to CRLF; the portable
+checkout now uses LF and will reject that different historical checksum. Keep
+the original database and its matching source checkout for review rather than
+editing migration metadata, deleting history, or assuming an automatic repair.
+The verified SQLx upgrade path covers databases with the committed LF migration.
+
 ## REST ingestion contract
 
 The public REST contract and copyable examples are in [README.md](README.md#rest-ingest-endpoints).
