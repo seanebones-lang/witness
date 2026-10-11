@@ -1,0 +1,5 @@
+# Keep source and embedded migration checksums consistent across platforms.
+* text=auto eol=lf
+# Frozen provenance artifacts must retain their original bytes, not Git's
+# platform-specific line-ending conversion.
+reference/usgs-river-gauge/snapshot/** -text

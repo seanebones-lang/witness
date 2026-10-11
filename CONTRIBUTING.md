@@ -151,11 +151,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```
 
-Run the API from the repository root so it can find the dashboard template:
+Run the API locally; dashboard templates and assets are embedded:
 
 ```bash
-touch witness.db
-cargo run --package witness-api
+cargo run --locked --package witness-api
 ```
 
 The default dashboard is available at <http://localhost:8080/>. The GraphQL
@@ -164,7 +163,7 @@ explorer is available at <http://localhost:8080/graphql>.
 ## Make a focused change
 
 - Keep each pull request centered on one problem.
-- Preserve unrelated work and generated SQLx metadata.
+- Preserve unrelated work and migration SQL/checksums.
 - Add tests when behavior, integrity guarantees, parsing, persistence, or public
   contracts change.
 - Use fixtures created for testing. Do not describe fixture data as independently

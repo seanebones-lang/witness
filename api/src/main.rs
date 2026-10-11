@@ -555,7 +555,10 @@ pub async fn run_server(database_url: &str, host: &str, port: u16) -> CoreResult
             local_port,
             local_request_guard,
         ));
-    tracing::info!("Witness API listening on http://{}:{}", host, port);
+    tracing::info!(
+        "Witness API listening on http://{}",
+        std::net::SocketAddr::new(address, local_port)
+    );
     axum::serve(listener, app).await?;
 
     Ok(())

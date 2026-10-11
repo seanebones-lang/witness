@@ -653,8 +653,9 @@ mod tests {
             .unwrap();
 
         assert!(service.storage.store_node(&node).await.is_err());
+        service.storage.pool.close().await;
         drop(service);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -679,8 +680,9 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+        service.storage.pool.close().await;
         drop(service);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -694,8 +696,9 @@ mod tests {
         let result = service.validate_import_relationships(&node).await;
 
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+        service.storage.pool.close().await;
         drop(service);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -719,8 +722,9 @@ mod tests {
         let result = service.validate_import_relationships(&node).await;
 
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+        service.storage.pool.close().await;
         drop(service);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
     #[tokio::test]
     async fn invalid_numeric_metadata_is_rejected_before_serialization() {
@@ -753,8 +757,9 @@ mod tests {
                 .unwrap(),
             0
         );
+        service.storage.pool.close().await;
         drop(service);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -792,10 +797,12 @@ mod tests {
             )
             .unwrap()
         );
+        service.storage.pool.close().await;
         drop(service);
+        destination.storage.pool.close().await;
         drop(destination);
         for file in [path, database, jsonl] {
-            std::fs::remove_file(file).unwrap();
+            crate::remove_test_path(&file, false).await;
         }
     }
 
@@ -847,9 +854,10 @@ mod tests {
                 .unwrap(),
             1
         );
+        service.storage.pool.close().await;
         drop(service);
-        std::fs::remove_file(path).unwrap();
-        std::fs::remove_file(jsonl).unwrap();
+        crate::remove_test_path(&path, false).await;
+        crate::remove_test_path(&jsonl, false).await;
     }
 
     #[tokio::test]
@@ -914,8 +922,9 @@ mod tests {
                 .unwrap(),
             2
         );
-        std::fs::remove_file(csv).unwrap();
+        crate::remove_test_path(&csv, false).await;
+        service.storage.pool.close().await;
         drop(service);
-        std::fs::remove_file(database).unwrap();
+        crate::remove_test_path(&database, false).await;
     }
 }

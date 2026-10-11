@@ -78,6 +78,8 @@ checksums against the migration directory.
 - A GraphQL mutation for storing observations.
 - A local browser dashboard for exploring records by epistemic type, domain,
   author, and label.
+  Label filters match complete, case-sensitive tags. `%` and `_` are literal
+  characters, not wildcards; multiple GraphQL labels must all be present.
 - Initial automated tests for signature verification and payload tampering.
 - Validation that imported JSONL content identifiers and existing signatures
   match their records, and that inference premises already exist.
@@ -163,11 +165,9 @@ cargo build --workspace
 cargo test --workspace
 ```
 
-Create an empty local database file and ingest one observation:
+Ingest one observation into a local database (created automatically):
 
 ```bash
-touch witness.db
-
 cargo run --package witness-ingestion -- \
   observe \
   --quantity air_temperature \
@@ -499,5 +499,9 @@ judged against it.
 The unauthenticated API binds only to loopback addresses. Host and browser Origin checks reject foreign sites; this does not authenticate other local programs. Use a trusted single-user machine and a disposable database when reviewing untrusted examples. Public deployment requires a separately designed authenticated gateway.
 
 The dashboard CSS and Alpine JavaScript are bundled in the Rust binary: no CDN requests or repository working directory are required. To rebuild the committed assets, run `npm ci --ignore-scripts --prefix dashboard` and `npm run build --prefix dashboard`. Upstream licenses are preserved in `dashboard/assets`.
+
+The optional GraphiQL developer explorer at `/graphql` loads upstream assets
+from `esm.sh` and requires network access. The dashboard and programmatic APIs
+operate independently of that explorer.
 
 Signatures now sort author metadata keys before serialization. Empty-metadata signatures retain their previous encoding. Historical signatures with populated metadata used unordered map serialization and may fail verification after reload; preserve original exports and signing bytes where available, and never silently re-sign them as historical originals. CIDs and signatures establish content integrity against trusted references, not scientific validity, trusted identity, or tamper-proof local storage.

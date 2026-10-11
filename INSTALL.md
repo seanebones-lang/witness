@@ -7,10 +7,13 @@ authorization.
 ## Fastest safe local start
 
 Prerequisite: current stable [Rust](https://rustup.rs/) with Cargo.
+The shell examples use Bash syntax (macOS/Linux terminals or Git Bash on
+Windows). Rust tests and the first-use demo are also checked in Windows CI;
+that does not establish a signed native installer or production deployment.
 
 ```bash
 git clone https://github.com/seanebones-lang/witness.git && cd witness && \
-touch witness.db && SQLX_OFFLINE=true cargo run --package witness-api
+cargo run --locked --package witness-api
 ```
 
 Open <http://127.0.0.1:8080/>. The server migrates the local `witness.db` file.
@@ -39,8 +42,12 @@ independent review.
 
 Stop with `Control-C`; the launcher removes its temporary database and key.
 Your existing `witness.db` is not used. Choose another port with `--port 4361` if
-4360 is occupied. Dashboard styling and interactivity currently require access
-to third-party CDNs; the CLI and API demonstration run locally.
+4360 is occupied. Dashboard styling and interactivity are bundled in the binary;
+no CDN requests or repository working directory are needed at runtime. Building
+from a fresh clone still requires downloading Rust dependencies.
+The optional GraphiQL developer explorer loads upstream assets from `esm.sh`;
+it needs network access. The dashboard and the API endpoints do not depend on
+that explorer.
 
 For an automated first-use check after building:
 
@@ -54,10 +61,10 @@ one page to retrieve the next page without repeating a record.
 ## Verify the repository before use
 
 ```bash
-SQLX_OFFLINE=true cargo fmt --all -- --check && \
-SQLX_OFFLINE=true cargo build --workspace --locked && \
-SQLX_OFFLINE=true cargo test --workspace --locked && \
-SQLX_OFFLINE=true cargo clippy --workspace --all-targets --locked -- -D warnings && \
+cargo fmt --all -- --check && \
+cargo build --workspace --locked && \
+cargo test --workspace --locked && \
+cargo clippy --workspace --all-targets --locked -- -D warnings && \
 python3 reference/usgs-river-gauge/tools/verify.py --bundle reference/usgs-river-gauge/snapshot
 ```
 
@@ -68,7 +75,7 @@ accuracy, calibration, completeness, or truth.
 Dashboard request-order regressions require Node.js 18 or newer:
 
 ```bash
-node --test dashboard/tests/request-order.test.cjs
+node --test dashboard/tests/*.test.cjs
 ```
 
 ## Run a separate local database
@@ -78,7 +85,7 @@ mixing it with another local run:
 
 ```bash
 DATABASE_URL="sqlite://$PWD/review.db" PORT=18080 \
-  cargo run --release --package witness-api
+  cargo run --release --locked --package witness-api
 ```
 
 Then check that it is alive:
@@ -86,6 +93,20 @@ Then check that it is alive:
 ```bash
 curl --fail http://127.0.0.1:18080/health
 ```
+
+For a separate CLI installation, run `cargo install --path ingestion --locked`
+from the source checkout, then call `witness-ingestion --help` from any directory.
+`gen-key --output <new-path>` refuses to overwrite an existing file, does not
+open a database, and creates mode-0600 key files on Unix. On other platforms,
+protect the key using your account's file permissions. Never commit a key.
+
+Before upgrading an existing database, stop the server and keep a separate
+backup. Migration checksums must match the embedded migration bytes. Older
+Windows checkouts may have converted SQL line endings to CRLF; the portable
+checkout now uses LF and will reject that different historical checksum. Keep
+the original database and its matching source checkout for review rather than
+editing migration metadata, deleting history, or assuming an automatic repair.
+The verified SQLx upgrade path covers databases with the committed LF migration.
 
 ## REST ingestion contract
 

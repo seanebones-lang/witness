@@ -58,10 +58,11 @@ impl Storage {
             std::fs::create_dir_all(parent)?;
         }
         let pool = SqlitePool::connect_with(options).await?;
-        sqlx_core::migrate::Migrator::new(EmbeddedMigrations)
-            .await?
-            .run(&pool)
-            .await?;
+        let migrator = sqlx_core::migrate::Migrator::new(EmbeddedMigrations).await?;
+        if let Err(error) = migrator.run(&pool).await {
+            pool.close().await;
+            return Err(error.into());
+        }
         Ok(Self {
             pool: Arc::new(pool),
         })
@@ -323,7 +324,7 @@ fn append_node_filters(query: &mut String, args: &mut Vec<String>, filter: &Quer
 
     if let Some(labels) = &filter.labels {
         for l in labels {
-            query.push_str(" AND labels LIKE '%' || ? || '%'");
+            query.push_str(" AND EXISTS (SELECT 1 FROM json_each(nodes.labels) AS label WHERE label.value = ?)");
             args.push(l.clone());
         }
     }
@@ -406,7 +407,7 @@ mod tests {
             Storage::new(&format!("sqlite://{}", path.display())).await,
             Err(crate::WitnessError::Migration(_))
         ));
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -452,7 +453,8 @@ mod tests {
             serde_json::to_value(&diff).unwrap()
         );
         storage.pool.close().await;
-        std::fs::remove_file(path).unwrap();
+        drop(storage);
+        crate::remove_test_path(&path, false).await;
     }
 
     async fn test_storage() -> (Storage, std::path::PathBuf) {
@@ -486,8 +488,9 @@ mod tests {
         let result = storage.get_node(id).await;
         assert!(matches!(result, Err(crate::WitnessError::Serialization(_))));
 
+        storage.pool.close().await;
         drop(storage);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -518,8 +521,9 @@ mod tests {
         let result = storage.get_node(id).await;
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
 
+        storage.pool.close().await;
         drop(storage);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -559,8 +563,63 @@ mod tests {
         assert_eq!(nodes.len(), 1);
         assert_eq!(count, nodes.len() as i64);
 
+        storage.pool.close().await;
         drop(storage);
-        std::fs::remove_file(path).unwrap();
+        crate::remove_test_path(&path, false).await;
+    }
+
+    #[tokio::test]
+    async fn label_filters_match_complete_literal_tags_and_counts() {
+        let (storage, path) = test_storage().await;
+        for labels in [
+            vec!["EXP-001"],
+            vec!["EXP-001-backup"],
+            vec!["literal%_tag"],
+        ] {
+            let payload = serde_json::json!({});
+            let node = ProvenanceNode {
+                id: Uuid::new_v4(),
+                cid: CID::new(&serde_json::to_vec(&payload).unwrap()),
+                epistemic_type: EpistemicType::Observed,
+                payload,
+                author: Author {
+                    id: "test".into(),
+                    name: None,
+                    author_type: AuthorType::Software,
+                    metadata: Default::default(),
+                },
+                timestamp: Utc::now(),
+                parents: vec![],
+                signature: None,
+                labels: labels.into_iter().map(str::to_owned).collect(),
+                domain: None,
+                source_uri: None,
+            };
+            storage.store_node(&node).await.unwrap();
+        }
+        for (labels, count) in [
+            (vec!["EXP-001"], 1),
+            (vec!["EXP-001-backup"], 1),
+            (vec!["%"], 0),
+            (vec!["_tag"], 0),
+            (vec!["literal%_tag"], 1),
+            (vec!["exp-001"], 0),
+            (vec!["EXP-001", "missing"], 0),
+        ] {
+            let filter = QueryFilter {
+                labels: Some(labels.into_iter().map(str::to_owned).collect()),
+                ..Default::default()
+            };
+            assert_eq!(
+                storage.query_nodes(&filter, 100, 0).await.unwrap().len(),
+                count,
+                "{filter:?}"
+            );
+            assert_eq!(storage.count_nodes(&filter).await.unwrap(), count as i64);
+        }
+        storage.pool.close().await;
+        drop(storage);
+        crate::remove_test_path(&path, false).await;
     }
 
     #[tokio::test]
@@ -571,15 +630,19 @@ mod tests {
             .await
             .unwrap();
         assert!(path.is_file());
-        let relative_shadow =
-            std::path::PathBuf::from(path.to_string_lossy().trim_start_matches('/'));
-        assert!(!relative_shadow.exists());
+        #[cfg(unix)]
+        {
+            let relative_shadow =
+                std::path::PathBuf::from(path.to_string_lossy().trim_start_matches('/'));
+            assert!(!relative_shadow.exists());
+        }
         assert_eq!(
             storage.count_nodes(&QueryFilter::default()).await.unwrap(),
             0
         );
         storage.pool.close().await;
-        std::fs::remove_dir_all(directory).unwrap();
+        drop(storage);
+        crate::remove_test_path(&directory, true).await;
     }
 
     #[tokio::test]

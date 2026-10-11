@@ -21,8 +21,15 @@ jobs:
       - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo audit --deny warnings
   rust:
-    name: Rust workspace
-    runs-on: ubuntu-latest
+    name: Rust workspace (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -43,8 +50,17 @@ jobs:
         run: cargo build --workspace --locked
       - name: Test
         run: cargo test --workspace --locked
+      - name: Repeat Windows storage cleanup regressions
+        if: runner.os == 'Windows'
+        run: |
+          cargo test --package witness-core --lib --locked
+          cargo test --package witness-core --lib --locked
       - name: Check isolated first-use demo
         run: python3 scripts/launch_demo.py --skip-build --check-only --port 18081
+      - name: Verify committed source-reference bytes
+        run: python3 reference/usgs-river-gauge/tools/verify.py --bundle reference/usgs-river-gauge/snapshot
+      - name: Check seed script syntax
+        run: bash -n seed_witness.sh
       - name: Dashboard request ordering regressions
         run: node --test dashboard/tests/*.test.cjs
       - name: Lint

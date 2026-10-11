@@ -132,6 +132,10 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    if let Commands::GenKey { output } = &cli.command {
+        generate_key(output)?;
+        return Ok(());
+    }
     let dataset_status = cli.dataset_status.clone();
 
     let storage = Arc::new(Storage::new(&cli.database).await?);
@@ -367,15 +371,27 @@ async fn main() -> Result<()> {
                 .await?;
             println!("Ingested generation: {}", node.id);
         }
-        Commands::GenKey { output } => {
-            let kp = SigningKeypair::generate();
-            let private_hex = kp.private_key_hex();
-            tokio::fs::write(&output, private_hex).await?;
-            println!("Generated keypair saved to {}", output);
-            println!("Public key: {}", kp.public_key_hex());
-        }
+        Commands::GenKey { .. } => unreachable!("key creation is handled before database setup"),
     }
 
+    Ok(())
+}
+
+fn generate_key(output: &str) -> Result<()> {
+    use std::io::Write;
+    let kp = SigningKeypair::generate();
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(output)?;
+    file.write_all(kp.private_key_hex().as_bytes())?;
+    file.sync_all()?;
+    println!("Generated keypair saved to {}", output);
+    println!("Public key: {}", kp.public_key_hex());
     Ok(())
 }
 
@@ -386,4 +402,30 @@ fn labels_with_status(mut labels: Vec<String>, status: &Option<String>) -> Vec<S
         labels.push(status.clone());
     }
     labels
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_key_is_create_only_and_private_on_unix() {
+        let path = std::env::temp_dir().join(format!("witness-key-test-{}", Uuid::new_v4()));
+        generate_key(path.to_str().unwrap()).unwrap();
+        let original = std::fs::read(&path).unwrap();
+        assert_eq!(hex::decode(&original).unwrap().len(), 32);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        assert!(
+            matches!(generate_key(path.to_str().unwrap()), Err(witness_core::WitnessError::Io(e)) if e.kind() == std::io::ErrorKind::AlreadyExists)
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        std::fs::remove_file(path).unwrap();
+    }
 }

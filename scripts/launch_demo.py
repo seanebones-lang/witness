@@ -46,7 +46,7 @@ def main():
         probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         probe.bind(("127.0.0.1", args.port))
 
-    env = dict(os.environ, SQLX_OFFLINE="true")
+    env = dict(os.environ)
     env.pop("WITNESS_KEY", None)
     env.pop("WITNESS_DB", None)
     if not args.skip_build:
@@ -71,6 +71,14 @@ def main():
         # Never print the private key or inherit a user's signing configuration.
         subprocess.run([str(cli), "--database", db_url, "gen-key", "--output", str(key)],
                        cwd=ROOT, env=env, check=True, capture_output=True)
+        if database.exists():
+            raise RuntimeError("Key creation unexpectedly opened the database")
+        original_key = key.read_bytes()
+        duplicate = subprocess.run([str(cli), "--database", db_url, "gen-key", "--output", str(key)],
+                                   cwd=ROOT, env=env, capture_output=True)
+        if duplicate.returncode == 0 or key.read_bytes() != original_key:
+            raise RuntimeError("Existing signing key was not protected from replacement")
+        del original_key
         os.chmod(key, 0o600)
 
         def observe(value, measured_at):
