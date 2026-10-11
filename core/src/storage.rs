@@ -323,7 +323,7 @@ fn append_node_filters(query: &mut String, args: &mut Vec<String>, filter: &Quer
 
     if let Some(labels) = &filter.labels {
         for l in labels {
-            query.push_str(" AND labels LIKE '%' || ? || '%'");
+            query.push_str(" AND EXISTS (SELECT 1 FROM json_each(nodes.labels) AS label WHERE label.value = ?)");
             args.push(l.clone());
         }
     }
@@ -560,6 +560,59 @@ mod tests {
         assert_eq!(count, nodes.len() as i64);
 
         drop(storage);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn label_filters_match_complete_literal_tags_and_counts() {
+        let (storage, path) = test_storage().await;
+        for labels in [
+            vec!["EXP-001"],
+            vec!["EXP-001-backup"],
+            vec!["literal%_tag"],
+        ] {
+            let payload = serde_json::json!({});
+            let node = ProvenanceNode {
+                id: Uuid::new_v4(),
+                cid: CID::new(&serde_json::to_vec(&payload).unwrap()),
+                epistemic_type: EpistemicType::Observed,
+                payload,
+                author: Author {
+                    id: "test".into(),
+                    name: None,
+                    author_type: AuthorType::Software,
+                    metadata: Default::default(),
+                },
+                timestamp: Utc::now(),
+                parents: vec![],
+                signature: None,
+                labels: labels.into_iter().map(str::to_owned).collect(),
+                domain: None,
+                source_uri: None,
+            };
+            storage.store_node(&node).await.unwrap();
+        }
+        for (labels, count) in [
+            (vec!["EXP-001"], 1),
+            (vec!["EXP-001-backup"], 1),
+            (vec!["%"], 0),
+            (vec!["_tag"], 0),
+            (vec!["literal%_tag"], 1),
+            (vec!["exp-001"], 0),
+            (vec!["EXP-001", "missing"], 0),
+        ] {
+            let filter = QueryFilter {
+                labels: Some(labels.into_iter().map(str::to_owned).collect()),
+                ..Default::default()
+            };
+            assert_eq!(
+                storage.query_nodes(&filter, 100, 0).await.unwrap().len(),
+                count,
+                "{filter:?}"
+            );
+            assert_eq!(storage.count_nodes(&filter).await.unwrap(), count as i64);
+        }
+        storage.pool.close().await;
         std::fs::remove_file(path).unwrap();
     }
 

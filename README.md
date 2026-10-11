@@ -78,6 +78,8 @@ checksums against the migration directory.
 - A GraphQL mutation for storing observations.
 - A local browser dashboard for exploring records by epistemic type, domain,
   author, and label.
+  Label filters match complete, case-sensitive tags. `%` and `_` are literal
+  characters, not wildcards; multiple GraphQL labels must all be present.
 - Initial automated tests for signature verification and payload tampering.
 - Validation that imported JSONL content identifiers and existing signatures
   match their records, and that inference premises already exist.
