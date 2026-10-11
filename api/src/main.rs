@@ -806,12 +806,12 @@ async fn get_domains(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<DomainsResponse>, axum::http::StatusCode> {
     // Get all unique domains from the database
-    let rows = sqlx::query!("SELECT DISTINCT domain FROM nodes WHERE domain IS NOT NULL")
-        .fetch_all(&*state.storage.pool)
-        .await
-        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let domains: Vec<String> = rows.into_iter().filter_map(|r| r.domain).collect();
+    let domains = sqlx_core::query_scalar::query_scalar::<_, String>(
+        "SELECT DISTINCT domain FROM nodes WHERE domain IS NOT NULL",
+    )
+    .fetch_all(&*state.storage.pool)
+    .await
+    .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(DomainsResponse { domains }))
 }

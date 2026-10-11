@@ -1,8 +1,11 @@
 use crate::Result;
 use crate::types::*;
 use chrono::{DateTime, Utc};
-use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::{Row, SqlitePool};
+use sqlx_core::{query::query as sql_query, row::Row};
+use sqlx_sqlite::{SqliteConnectOptions, SqlitePool};
+use std::borrow::Cow;
+use std::future::Future;
+use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -11,12 +14,43 @@ pub struct Storage {
     pub pool: Arc<SqlitePool>,
 }
 
+// Keep migrations embedded so installed binaries work outside the source tree.
+// A custom source avoids SQLx's macro dependency on unused MySQL/Postgres stacks.
+// Register new migrations here; the inventory regression checks the directory.
+#[derive(Debug)]
+struct EmbeddedMigrations;
+
+impl sqlx_core::migrate::MigrationSource<'static> for EmbeddedMigrations {
+    fn resolve(
+        self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = std::result::Result<
+                        Vec<sqlx_core::migrate::Migration>,
+                        sqlx_core::error::BoxDynError,
+                    >,
+                > + Send,
+        >,
+    > {
+        Box::pin(async {
+            Ok(vec![sqlx_core::migrate::Migration::new(
+                1,
+                Cow::Borrowed("initial schema"),
+                sqlx_core::migrate::MigrationType::Simple,
+                Cow::Borrowed(include_str!("../migrations/001_initial_schema.sql")),
+                false,
+            )])
+        })
+    }
+}
+
 impl Storage {
     pub async fn new(database_url: &str) -> Result<Self> {
         // Let SQLx parse paths and URI parameters; stripping leading slashes
         // changes absolute paths into unrelated files under the working directory.
         let options = SqliteConnectOptions::from_str(database_url)?.create_if_missing(true);
-        let filename = options.clone().get_filename();
+        let filename = options.get_filename();
         if let Some(parent) = filename
             .parent()
             .filter(|path| !path.as_os_str().is_empty())
@@ -24,7 +58,10 @@ impl Storage {
             std::fs::create_dir_all(parent)?;
         }
         let pool = SqlitePool::connect_with(options).await?;
-        sqlx::migrate!("./migrations").run(&pool).await?;
+        sqlx_core::migrate::Migrator::new(EmbeddedMigrations)
+            .await?
+            .run(&pool)
+            .await?;
         Ok(Self {
             pool: Arc::new(pool),
         })
@@ -47,7 +84,7 @@ impl Storage {
         let timestamp_str = node.timestamp.to_rfc3339();
 
         let mut transaction = self.pool.begin().await?;
-        sqlx::query(
+        sql_query(
             r#"
             INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels, signature, domain, source_uri)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -71,7 +108,7 @@ impl Storage {
         for parent_id in &node.parents {
             let from_str = parent_id.to_string();
             let to_str = node.id.to_string();
-            sqlx::query(
+            sql_query(
                 "INSERT OR IGNORE INTO edges (from_id, to_id, edge_type) VALUES (?, ?, 'supports')",
             )
             .bind(from_str)
@@ -87,7 +124,7 @@ impl Storage {
     pub async fn get_node(&self, id: Uuid) -> Result<Option<ProvenanceNode>> {
         let id_str = id.to_string();
         let query = "SELECT id, cid, epistemic_type, payload, author, timestamp, parents, labels, signature, domain, source_uri FROM nodes WHERE id = ?";
-        let mut q = sqlx::query(query);
+        let mut q = sql_query(query);
         q = q.bind(id_str);
 
         let row = q.fetch_optional(&*self.pool).await?;
@@ -112,7 +149,7 @@ impl Storage {
         args.push(limit.to_string());
         args.push(offset.to_string());
 
-        let mut q = sqlx::query(&query);
+        let mut q = sql_query(&query);
         for arg in args {
             q = q.bind(arg);
         }
@@ -127,7 +164,7 @@ impl Storage {
 
         append_node_filters(&mut query, &mut args, filter);
 
-        let mut q = sqlx::query(&query);
+        let mut q = sql_query(&query);
         for arg in args {
             q = q.bind(arg);
         }
@@ -142,7 +179,7 @@ impl Storage {
              FROM nodes n
              JOIN edges e ON n.id = e.to_id
              WHERE e.from_id = ? AND e.edge_type = 'supports'";
-        let mut q = sqlx::query(query);
+        let mut q = sql_query(query);
         q = q.bind(parent_str);
 
         let rows = q.fetch_all(&*self.pool).await?;
@@ -174,18 +211,18 @@ impl Storage {
         let inference_id_str = diff.inference_id.to_string();
         let timestamp_str = diff.timestamp.to_rfc3339();
 
-        sqlx::query!(
+        sql_query(
             r#"
             INSERT INTO narrative_diffs (inference_id, old_version, new_version, changed_fields, timestamp, editor)
             VALUES (?, ?, ?, ?, ?, ?)
             "#,
-            inference_id_str,
-            old_version,
-            new_version,
-            changed_fields,
-            timestamp_str,
-            editor
         )
+        .bind(inference_id_str)
+        .bind(old_version)
+        .bind(new_version)
+        .bind(changed_fields)
+        .bind(timestamp_str)
+        .bind(editor)
         .execute(&*self.pool)
         .await?;
 
@@ -194,28 +231,34 @@ impl Storage {
 
     pub async fn get_diffs(&self, inference_id: Uuid) -> Result<Vec<NarrativeDiff>> {
         let inference_str = inference_id.to_string();
-        let rows = sqlx::query!(
+        let rows = sql_query(
             "SELECT inference_id, old_version, new_version, changed_fields, timestamp, editor FROM narrative_diffs WHERE inference_id = ? ORDER BY timestamp DESC",
-            inference_str
         )
+        .bind(inference_str)
         .fetch_all(&*self.pool)
         .await?;
 
         rows.into_iter()
             .map(|r| {
                 Ok(NarrativeDiff {
-                    inference_id: parse_uuid(&r.inference_id, "narrative diff inference_id")?,
-                    old_version: serde_json::from_str(&r.old_version)?,
-                    new_version: serde_json::from_str(&r.new_version)?,
-                    changed_fields: serde_json::from_str(&r.changed_fields)?,
-                    timestamp: parse_timestamp(&r.timestamp, "narrative diff timestamp")?,
-                    editor: serde_json::from_str(&r.editor)?,
+                    inference_id: parse_uuid(
+                        r.try_get("inference_id")?,
+                        "narrative diff inference_id",
+                    )?,
+                    old_version: serde_json::from_str(r.try_get("old_version")?)?,
+                    new_version: serde_json::from_str(r.try_get("new_version")?)?,
+                    changed_fields: serde_json::from_str(r.try_get("changed_fields")?)?,
+                    timestamp: parse_timestamp(
+                        r.try_get("timestamp")?,
+                        "narrative diff timestamp",
+                    )?,
+                    editor: serde_json::from_str(r.try_get("editor")?)?,
                 })
             })
             .collect()
     }
 
-    fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<ProvenanceNode> {
+    fn row_to_node(row: sqlx_sqlite::SqliteRow) -> Result<ProvenanceNode> {
         let id = row.get::<String, _>("id");
         let epistemic_type = row.get::<String, _>("epistemic_type");
         let timestamp = row.get::<String, _>("timestamp");
@@ -324,6 +367,94 @@ fn parse_timestamp(value: &str, field: &str) -> Result<DateTime<Utc>> {
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn embedded_migrations_match_files_and_preserve_checksums_on_reopen() {
+        let embedded = sqlx_core::migrate::Migrator::new(EmbeddedMigrations)
+            .await
+            .unwrap();
+        let files = sqlx_core::migrate::Migrator::new(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("migrations"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(embedded.iter().count(), files.iter().count());
+        for (a, b) in embedded.iter().zip(files.iter()) {
+            assert_eq!(a.version, b.version);
+            assert_eq!(a.description, b.description);
+            assert_eq!(a.sql, b.sql);
+            assert_eq!(a.checksum, b.checksum);
+        }
+        let (storage, path) = test_storage().await;
+        storage.pool.close().await;
+        drop(storage);
+        let reopened = Storage::new(&format!("sqlite://{}", path.display()))
+            .await
+            .unwrap();
+        let count: i64 =
+            sqlx_core::query_scalar::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
+                .fetch_one(&*reopened.pool)
+                .await
+                .unwrap();
+        assert_eq!(count, 1);
+        sql_query("UPDATE _sqlx_migrations SET checksum = X'00'")
+            .execute(&*reopened.pool)
+            .await
+            .unwrap();
+        reopened.pool.close().await;
+        drop(reopened);
+        assert!(matches!(
+            Storage::new(&format!("sqlite://{}", path.display())).await,
+            Err(crate::WitnessError::Migration(_))
+        ));
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn narrative_diff_round_trip_preserves_all_fields() {
+        let (storage, path) = test_storage().await;
+        let author = Author {
+            id: "human:test".into(),
+            name: Some("Test editor".into()),
+            author_type: AuthorType::Human,
+            metadata: Default::default(),
+        };
+        let payload = serde_json::json!({"claim": "original fixture"});
+        let node = ProvenanceNode {
+            id: Uuid::new_v4(),
+            cid: CID::new(&serde_json::to_vec(&payload).unwrap()),
+            epistemic_type: EpistemicType::Inferred,
+            payload,
+            author: author.clone(),
+            timestamp: Utc::now(),
+            parents: vec![],
+            signature: None,
+            labels: vec!["fixture".into()],
+            domain: None,
+            source_uri: None,
+        };
+        storage.store_node(&node).await.unwrap();
+        let mut edited = node.clone();
+        edited.payload = serde_json::json!({"claim": "edited fixture"});
+        edited.cid = CID::new(&serde_json::to_vec(&edited.payload).unwrap());
+        let diff = NarrativeDiff {
+            inference_id: node.id,
+            old_version: node.clone(),
+            new_version: edited,
+            changed_fields: vec!["payload.claim".into()],
+            timestamp: Utc::now(),
+            editor: author,
+        };
+        storage.store_diff(&diff).await.unwrap();
+        let restored = storage.get_diffs(node.id).await.unwrap();
+        assert_eq!(restored.len(), 1);
+        assert_eq!(
+            serde_json::to_value(&restored[0]).unwrap(),
+            serde_json::to_value(&diff).unwrap()
+        );
+        storage.pool.close().await;
+        std::fs::remove_file(path).unwrap();
+    }
+
     async fn test_storage() -> (Storage, std::path::PathBuf) {
         let path = std::env::temp_dir().join(format!("witness-storage-{}.db", Uuid::new_v4()));
         std::fs::File::create(&path).unwrap();
@@ -337,7 +468,7 @@ mod tests {
     async fn malformed_stored_node_returns_error_instead_of_panicking() {
         let (storage, path) = test_storage().await;
         let id = Uuid::new_v4();
-        sqlx::query(
+        sql_query(
             "INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(id.to_string())
@@ -364,11 +495,11 @@ mod tests {
         let (storage, path) = test_storage().await;
         let id = Uuid::new_v4();
         let mut connection = storage.pool.acquire().await.unwrap();
-        sqlx::query("PRAGMA ignore_check_constraints = ON")
+        sql_query("PRAGMA ignore_check_constraints = ON")
             .execute(&mut *connection)
             .await
             .unwrap();
-        sqlx::query(
+        sql_query(
             "INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(id.to_string())
@@ -392,14 +523,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn filtered_count_matches_filtered_query() {
+    async fn filtered_count_matches_filtered_sql_query() {
         let (storage, path) = test_storage().await;
 
         for (author, labels) in [
             ("US Geological Survey", r#"["demo-fixture","hydrology"]"#),
             ("National Weather Service", r#"["demo-fixture","weather"]"#),
         ] {
-            sqlx::query(
+            sql_query(
                 "INSERT INTO nodes (id, cid, epistemic_type, payload, author, timestamp, parents, labels, domain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(Uuid::new_v4().to_string())
