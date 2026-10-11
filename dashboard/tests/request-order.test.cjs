@@ -18,6 +18,15 @@ function harness() {
   return { app, pending, resolve, context };
 }
 
+test('falsifier badges recognize the serialized API statuses', () => {
+  const { app } = harness();
+  assert.equal(app.getFalsifierStatusClass('pending'), 'badge-generated');
+  assert.equal(app.getFalsifierStatusClass('in-progress'), 'badge-inferred');
+  assert.equal(app.getFalsifierStatusClass('completed-falsified'), 'badge-observed');
+  assert.equal(app.getFalsifierStatusClass('completed-confirmed'), 'badge-observed');
+  assert.equal(app.getFalsifierStatusClass('unknown'), 'badge-generated');
+});
+
 test('newer category results survive an older request finishing last', async () => {
   const { app, pending, resolve } = harness();
   const old = app.fetchNodes();

@@ -152,7 +152,7 @@
                 getCardClass(type) { return type === 'Generated' ? 'bg-zinc-950/60 border-dashed border-purple-500/30' : 'bg-elevated border-base'; },
                 getBadgeClass(type) { return type === 'Observed' ? 'badge-observed' : type === 'Inferred' ? 'badge-inferred' : 'badge-generated'; },
                 getFalsifierStatusClass(status) {
-                    const classes = { Pending: 'badge-generated', InProgress: 'badge-inferred', CompletedFalsified: 'badge-observed', CompletedConfirmed: 'badge-observed' };
+                    const classes = { pending: 'badge-generated', 'in-progress': 'badge-inferred', 'completed-falsified': 'badge-observed', 'completed-confirmed': 'badge-observed' };
                     return classes[status] || 'badge-generated';
                 },
                 formatDate(iso) { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); },
