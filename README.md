@@ -128,6 +128,11 @@ The dashboard template is in [`dashboard/`](dashboard/).
 
 ## Quick start
 
+For a populated local demonstration using clearly labeled synthetic fixtures,
+run `python3 scripts/launch_demo.py` after cloning. It builds the workspace,
+starts a disposable loopback server, and checks record ingestion and a rejected
+missing-premise inference. See [the demo instructions](INSTALL.md#try-a-populated-demonstration).
+
 For the shortest local setup, a clean review database, common failures, and the
 Humanity Grid Proof A replay path, see [INSTALL.md](INSTALL.md).
 

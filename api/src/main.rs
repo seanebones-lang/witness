@@ -1062,7 +1062,10 @@ async fn ingest_inference_rest(
             None,
         )
         .await
-        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|error| match error {
+            witness_core::WitnessError::Validation(_) => axum::http::StatusCode::BAD_REQUEST,
+            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
     Ok(Json(node.into()))
 }
 
