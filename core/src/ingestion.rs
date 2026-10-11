@@ -34,6 +34,7 @@ impl IngestionService {
         source_uri: Option<String>,
         keypair: Option<&SigningKeypair>,
     ) -> Result<ProvenanceNode> {
+        validate_measurement(&measurement)?;
         let node = self.build_observation_node(measurement, author, labels, domain, source_uri)?;
         let keypair = keypair.or(self.default_keypair.as_ref());
         let signed_node = self.sign_and_store(node, keypair).await?;
@@ -50,6 +51,14 @@ impl IngestionService {
         source_uri: Option<String>,
         keypair: Option<&SigningKeypair>,
     ) -> Result<ProvenanceNode> {
+        if derivation
+            .inference_uncertainty
+            .is_some_and(|value| !value.is_finite())
+        {
+            return Err(crate::WitnessError::Validation(
+                "inference uncertainty must be finite".into(),
+            ));
+        }
         for premise in &derivation.premises {
             if self.storage.get_node(*premise).await?.is_none() {
                 return Err(crate::WitnessError::Validation(format!(
@@ -153,9 +162,16 @@ impl IngestionService {
         let mut reader = ReaderBuilder::new().from_reader(file);
         let mut nodes = Vec::new();
 
-        for result in reader.deserialize::<serde_json::Value>() {
+        for (index, result) in reader
+            .deserialize::<std::collections::HashMap<String, String>>()
+            .enumerate()
+        {
             let record = result?;
-            let measurement = self.csv_record_to_measurement(&record, &column_mapping)?;
+            let measurement = self
+                .csv_record_to_measurement(&record, &column_mapping)
+                .map_err(|error| {
+                    crate::WitnessError::Validation(format!("CSV row {}: {error}", index + 2))
+                })?;
             let labels = vec!["csv-import".to_string()];
             let source_uri = Some(format!("file://{}", path));
             let node = self
@@ -279,77 +295,84 @@ impl IngestionService {
 
     fn csv_record_to_measurement(
         &self,
-        record: &serde_json::Value,
+        record: &std::collections::HashMap<String, String>,
         mapping: &CsvColumnMapping,
     ) -> Result<Measurement> {
-        let get = |key: &str| record.get(key).and_then(|v| v.as_str()).unwrap_or("");
+        let get = |key: &str| -> Result<Option<&str>> {
+            if key.is_empty() {
+                return Ok(None);
+            }
+            let value = record.get(key).ok_or_else(|| {
+                crate::WitnessError::Validation(format!("mapped column is missing: {key}"))
+            })?;
+            Ok((!value.trim().is_empty()).then_some(value.as_str()))
+        };
+        let required = |key: &str| -> Result<String> {
+            get(key)?.map(str::to_owned).ok_or_else(|| {
+                crate::WitnessError::Validation(format!(
+                    "required column is blank or unmapped: {key}"
+                ))
+            })
+        };
+        let number = |key: &str| -> Result<Option<f64>> {
+            get(key)?
+                .map(|value| {
+                    value.parse::<f64>().map_err(|_| {
+                        crate::WitnessError::Validation(format!("invalid number in column: {key}"))
+                    })
+                })
+                .transpose()
+        };
+        let text = get(&mapping.value_text)?.map(str::to_owned);
+        let numeric = match number(&mapping.value_numeric) {
+            Ok(value) => value,
+            Err(_) if text.is_some() && mapping.value_numeric == mapping.value_text => None,
+            Err(error) => return Err(error),
+        };
+        let measured_at = required(&mapping.timestamp)?.parse().map_err(|_| {
+            crate::WitnessError::Validation(format!(
+                "timestamp column {} must contain RFC 3339 values",
+                mapping.timestamp
+            ))
+        })?;
+        let uncertainty = number(&mapping.uncertainty_value)?
+            .map(|value| -> Result<Uncertainty> {
+                Ok(Uncertainty {
+                    value,
+                    unit: required(&mapping.uncertainty_unit)?,
+                    confidence_level: number(&mapping.confidence_level)?.ok_or_else(|| {
+                        crate::WitnessError::Validation(
+                            "uncertainty requires a confidence level column".into(),
+                        )
+                    })?,
+                    method: required(&mapping.uncertainty_method)?,
+                })
+            })
+            .transpose()?;
 
         Ok(Measurement {
-            quantity: get(&mapping.quantity).to_string(),
+            quantity: required(&mapping.quantity)?,
             value: MeasuredValue {
-                numeric: get(&mapping.value_numeric).parse().ok(),
-                text: if mapping.value_text.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.value_text).to_string())
-                },
-                unit: if mapping.unit.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.unit).to_string())
-                },
-                categorical: if mapping.categorical.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.categorical).to_string())
-                },
+                numeric,
+                text,
+                unit: get(&mapping.unit)?.map(str::to_owned),
+                categorical: get(&mapping.categorical)?.map(str::to_owned),
             },
             location: Location {
-                latitude: get(&mapping.latitude).parse().ok(),
-                longitude: get(&mapping.longitude).parse().ok(),
-                station_id: if mapping.station_id.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.station_id).to_string())
-                },
-                description: if mapping.location_desc.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.location_desc).to_string())
-                },
-                altitude_m: get(&mapping.altitude).parse().ok(),
+                latitude: number(&mapping.latitude)?,
+                longitude: number(&mapping.longitude)?,
+                station_id: get(&mapping.station_id)?.map(str::to_owned),
+                description: get(&mapping.location_desc)?.map(str::to_owned),
+                altitude_m: number(&mapping.altitude)?,
             },
-            measured_at: get(&mapping.timestamp)
-                .parse()
-                .unwrap_or_else(|_| Utc::now()),
+            measured_at,
             instrument: InstrumentRef {
-                id: get(&mapping.instrument_id).to_string(),
-                name: if mapping.instrument_name.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.instrument_name).to_string())
-                },
-                model: if mapping.instrument_model.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.instrument_model).to_string())
-                },
-                calibration_ref: if mapping.calibration_ref.is_empty() {
-                    None
-                } else {
-                    Some(get(&mapping.calibration_ref).to_string())
-                },
+                id: required(&mapping.instrument_id)?,
+                name: get(&mapping.instrument_name)?.map(str::to_owned),
+                model: get(&mapping.instrument_model)?.map(str::to_owned),
+                calibration_ref: get(&mapping.calibration_ref)?.map(str::to_owned),
             },
-            uncertainty: if mapping.uncertainty_value.is_empty() {
-                None
-            } else {
-                Some(Uncertainty {
-                    value: get(&mapping.uncertainty_value).parse().unwrap_or(0.0),
-                    unit: get(&mapping.uncertainty_unit).to_string(),
-                    confidence_level: get(&mapping.confidence_level).parse().unwrap_or(0.95),
-                    method: get(&mapping.uncertainty_method).to_string(),
-                })
-            },
+            uncertainty,
             chain_of_custody: None,
         })
     }
@@ -376,6 +399,65 @@ pub struct CsvColumnMapping {
     pub uncertainty_unit: String,
     pub confidence_level: String,
     pub uncertainty_method: String,
+}
+
+fn validate_measurement(measurement: &Measurement) -> Result<()> {
+    let invalid = |message: &str| crate::WitnessError::Validation(message.into());
+    if measurement.quantity.trim().is_empty() || measurement.instrument.id.trim().is_empty() {
+        return Err(invalid(
+            "an observation requires a quantity and instrument ID",
+        ));
+    }
+    if measurement.value.numeric.is_none()
+        && measurement
+            .value
+            .text
+            .as_ref()
+            .is_none_or(|value| value.trim().is_empty())
+        && measurement
+            .value
+            .categorical
+            .as_ref()
+            .is_none_or(|value| value.trim().is_empty())
+    {
+        return Err(invalid(
+            "an observation requires a numeric, nonblank text, or categorical value",
+        ));
+    }
+    for value in [
+        measurement.value.numeric,
+        measurement.location.latitude,
+        measurement.location.longitude,
+        measurement.location.altitude_m,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if !value.is_finite() {
+            return Err(invalid("measurement numbers must be finite"));
+        }
+    }
+    if measurement
+        .location
+        .latitude
+        .is_some_and(|value| !(-90.0..=90.0).contains(&value))
+        || measurement
+            .location
+            .longitude
+            .is_some_and(|value| !(-180.0..=180.0).contains(&value))
+    {
+        return Err(invalid("latitude or longitude is outside its valid range"));
+    }
+    if let Some(uncertainty) = &measurement.uncertainty
+        && (!uncertainty.value.is_finite()
+            || uncertainty.value < 0.0
+            || !(0.0..=1.0).contains(&uncertainty.confidence_level))
+    {
+        return Err(invalid(
+            "uncertainty must be finite and nonnegative with confidence between 0 and 1",
+        ));
+    }
+    Ok(())
 }
 
 impl Default for ProvenanceNode {
@@ -531,5 +613,106 @@ mod tests {
         assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
         drop(service);
         std::fs::remove_file(path).unwrap();
+    }
+    #[tokio::test]
+    async fn invalid_numeric_metadata_is_rejected_before_serialization() {
+        let (service, path) = test_service().await;
+        let mut nonfinite = measurement();
+        nonfinite.value.numeric = Some(f64::NAN);
+        let mut missing = measurement();
+        missing.value.numeric = None;
+        missing.value.text = Some(" ".into());
+        let mut location = measurement();
+        location.location.latitude = Some(91.0);
+        let mut uncertainty = measurement();
+        uncertainty.uncertainty = Some(Uncertainty {
+            value: -1.0,
+            unit: "celsius".into(),
+            confidence_level: 0.95,
+            method: "fixture".into(),
+        });
+        for input in [nonfinite, missing, location, uncertainty] {
+            let result = service
+                .ingest_observation(input, author(), vec![], None, None, None)
+                .await;
+            assert!(matches!(result, Err(crate::WitnessError::Validation(_))));
+        }
+        assert_eq!(
+            service
+                .storage
+                .count_nodes(&QueryFilter::default())
+                .await
+                .unwrap(),
+            0
+        );
+        drop(service);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn csv_preserves_values_and_dates_and_rejects_malformed_rows() {
+        let (service, database) = test_service().await;
+        let csv = std::env::temp_dir().join(format!("witness-csv-{}.csv", Uuid::new_v4()));
+        let mapping = CsvColumnMapping {
+            quantity: "quantity".into(),
+            value_numeric: "value".into(),
+            value_text: "value".into(),
+            instrument_id: "instrument".into(),
+            timestamp: "time".into(),
+            ..Default::default()
+        };
+        std::fs::write(&csv, "quantity,value,instrument,time\ntemperature,20,fixture,2026-10-01T09:00:00Z\ncondition,rain,fixture,2026-10-01T10:00:00Z\n").unwrap();
+        let nodes = service
+            .ingest_csv_observations(csv.to_str().unwrap(), author(), None, mapping.clone(), None)
+            .await
+            .unwrap();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].payload["measurement"]["value"]["numeric"], 20.0);
+        assert_eq!(nodes[1].payload["measurement"]["value"]["text"], "rain");
+        assert_eq!(
+            nodes[0].payload["measurement"]["measured_at"],
+            "2026-10-01T09:00:00Z"
+        );
+        for row in [
+            "temperature,20,fixture,bad-date",
+            "temperature,NaN,fixture,2026-10-01T09:00:00Z",
+            "temperature,,fixture,2026-10-01T09:00:00Z",
+        ] {
+            std::fs::write(&csv, format!("quantity,value,instrument,time\n{row}\n")).unwrap();
+            assert!(
+                service
+                    .ingest_csv_observations(
+                        csv.to_str().unwrap(),
+                        author(),
+                        None,
+                        mapping.clone(),
+                        None
+                    )
+                    .await
+                    .is_err()
+            );
+        }
+        std::fs::write(
+            &csv,
+            "quantity,value,time\ntemperature,20,2026-10-01T09:00:00Z\n",
+        )
+        .unwrap();
+        assert!(
+            service
+                .ingest_csv_observations(csv.to_str().unwrap(), author(), None, mapping, None)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            service
+                .storage
+                .count_nodes(&QueryFilter::default())
+                .await
+                .unwrap(),
+            2
+        );
+        std::fs::remove_file(csv).unwrap();
+        drop(service);
+        std::fs::remove_file(database).unwrap();
     }
 }

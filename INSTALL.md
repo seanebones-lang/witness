@@ -48,6 +48,9 @@ For an automated first-use check after building:
 python3 scripts/launch_demo.py --skip-build --check-only --port 18081
 ```
 
+This check also rejects malformed observations and uses the GraphQL cursor from
+one page to retrieve the next page without repeating a record.
+
 ## Verify the repository before use
 
 ```bash
@@ -62,13 +65,19 @@ The final verifier checks committed demonstration bytes and extraction against
 their recorded digest. It does **not** establish source identity, measurement
 accuracy, calibration, completeness, or truth.
 
+Dashboard request-order regressions require Node.js 18 or newer:
+
+```bash
+node --test dashboard/tests/request-order.test.cjs
+```
+
 ## Run a separate local database
 
 Use a named database for a review, experiment, or integration test rather than
 mixing it with another local run:
 
 ```bash
-touch review.db && DATABASE_URL="sqlite://$PWD/review.db" PORT=18080 \
+DATABASE_URL="sqlite://$PWD/review.db" PORT=18080 \
   cargo run --release --package witness-api
 ```
 
@@ -85,6 +94,28 @@ Use only loopback URLs while the prototype remains unauthenticated. A returned
 CID establishes a relationship to stored bytes; it does not establish that a
 record is true, independently sourced, or fit for a consequential decision.
 
+An explicitly supplied `measured_at` must be RFC 3339; invalid timestamps are
+rejected rather than replaced with the current time. Omitting that optional
+REST field still records the ingestion time. Measurement numbers must be finite,
+values must not be blank, and quantity and instrument ID are required.
+Unsupported falsifier statuses return `400` rather than silently becoming Pending.
+CLI `infer --premise` arguments must be UUIDs. Invalid IDs fail before opening
+the database; valid IDs must refer to existing records before the inference is saved.
+
+GraphQL `pageInfo.endCursor` is the numeric offset for the next request's `after`.
+Ordering uses timestamp and record ID; these cursors are not a snapshot and new
+records can shift offsets between requests. Keep the same filter when advancing.
+`parentOf`, `childOf`, and `hasFalsifiers` filter both records and their count.
+Date filters require both RFC 3339 endpoints in chronological order. Invalid
+cursors, dates, or UUID filters return an error instead of silently resetting.
+
+CSV import requires mapped quantity, value, instrument, and timestamp columns.
+Configured columns must exist; blank required cells, malformed timestamps,
+non-finite values, and malformed numeric metadata are rejected. The CLI's value
+column can contain a numeric or nonblank text value. CSV and JSONL rows commit
+individually: if a later row fails, earlier rows remain. Use a fresh review
+database when retrying a corrected import to avoid mixing attempts.
+
 ## Proof A integration
 
 The Humanity Grid integration guide is in its
@@ -98,7 +129,7 @@ docking.
 
 | Symptom | Cause and resolution |
 | --- | --- |
-| `sqlx` cannot open the database | Use a writable location, create the file with `touch review.db`, then use the explicit `DATABASE_URL` command above. |
+| `sqlx` cannot open the database | Use a writable location and the explicit `DATABASE_URL` command above. Witness creates missing parent directories and the database at that path. |
 | `address already in use` | Pick another port, for example `PORT=18080`. |
 | Browser shows no records | A new database is empty by design. Ingest a record, run the demo seed script, or use the Proof A replay guide. |
 | REST request returns `400` | Check required fields, UUID premise IDs, and supported type strings. Inferences cannot reference missing premises. |

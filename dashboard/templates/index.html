@@ -43,9 +43,9 @@
                     <p class="text-xs text-muted font-mono">public skeptic that remembers</p>
                 </div>
             </div>
-            <nav class="flex items-center gap-1" x-data="{ activeTab: 'observed' }">
+            <nav class="flex items-center gap-1">
                 <template x-for="tab in tabs" :key="tab.id">
-                    <button @click="activeTab = tab.id; $dispatch('tab-change', tab.id)" :class="activeTab === tab.id ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'text-muted hover:text-base'" class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-all" x-text="tab.label"></button>
+                    <button @click="setTab(tab.id)" :class="activeTab === tab.id ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'text-muted hover:text-base'" class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-all" x-text="tab.label"></button>
                 </template>
             </nav>
         </div>
@@ -56,10 +56,10 @@
             <p class="text-sm text-yellow-100"><strong>Read the provenance, not just the label.</strong> “Observed” is the producer's classification, not a finding that the record is true. A signature shown here is only present in stored data; this dashboard does not verify it on read. A valid signature would establish control of its public key for signed bytes, not identity, authority, accuracy, or truth.</p>
         </section>
         <div class="mb-6 flex flex-wrap gap-4 items-end">
-            <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1">Domain</label><select x-model="filter.domain" @change="page = 1; fetchNodes()" class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"><option value="">All domains</option><template x-for="d in domains" :key="d"><option :value="d" x-text="d"></option></template></select></div>
-            <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1">Author</label><input type="text" x-model="filter.author" @input.debounce.300ms="page = 1; fetchNodes()" placeholder="Filter by author..." class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"></div>
-            <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1">Label</label><input type="text" x-model="filter.label" @input.debounce.300ms="page = 1; fetchNodes()" placeholder="Filter by label..." class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"></div>
-            <button @click="fetchNodes()" :disabled="loading" class="px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"><span x-show="!loading">Refresh</span><span x-show="loading" class="loading flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Loading...</span></button>
+            <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1" for="filter-domain">Domain</label><select id="filter-domain" x-model="filter.domain" @change="page = 1; fetchNodes()" class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"><option value="">All domains</option><template x-for="d in domains" :key="d"><option :value="d" x-text="d"></option></template></select></div>
+            <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1" for="filter-author">Author</label><input id="filter-author" type="text" x-model="filter.author" @input.debounce.300ms="page = 1; fetchNodes()" placeholder="Filter by author..." class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"></div>
+            <div class="flex-1 min-w-[200px]"><label class="block text-xs font-medium text-muted mb-1" for="filter-label">Label</label><input id="filter-label" type="text" x-model="filter.label" @input.debounce.300ms="page = 1; fetchNodes()" placeholder="Filter by label..." class="w-full bg-elevated border border-base rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"></div>
+            <button @click="refresh()" :disabled="loading" class="px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"><span x-show="!loading">Refresh</span><span x-show="loading" class="loading flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Loading...</span></button>
         </div>
 
         <div x-show="!selectedNode" x-transition>
@@ -78,8 +78,8 @@
         </div>
 
         <template x-if="selectedNode"><div x-transition @keydown.escape.window="closeNode()" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div role="dialog" aria-modal="true" aria-labelledby="node-detail-title" class="bg-elevated border border-base rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col" x-transition>
-                <div class="flex items-center justify-between p-4 border-b border-base"><div class="flex items-center gap-3"><span :class="'badge px-3 py-1 rounded text-sm font-medium font-mono ' + getBadgeClass(selectedNode.epistemic_type)" x-text="selectedNode.epistemic_type"></span><div><p id="node-detail-title" class="font-mono text-sm text-muted break-all" x-text="selectedNode.id"></p><p class="text-xs text-muted" x-text="formatDate(selectedNode.timestamp)"></p></div></div><button type="button" aria-label="Close record details" @click="closeNode()" class="p-2 hover:bg-base rounded-lg text-muted hover:text-base transition-colors"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+            <div role="dialog" aria-modal="true" @keydown.tab="trapDetailFocus($event)" aria-labelledby="node-detail-title" class="bg-elevated border border-base rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col" x-transition>
+                <div class="flex items-center justify-between p-4 border-b border-base"><div class="flex items-center gap-3"><span :class="'badge px-3 py-1 rounded text-sm font-medium font-mono ' + getBadgeClass(selectedNode.epistemic_type)" x-text="selectedNode.epistemic_type"></span><div><p id="node-detail-title" class="font-mono text-sm text-muted break-all" x-text="selectedNode.id"></p><p class="text-xs text-muted" x-text="formatDate(selectedNode.timestamp)"></p></div></div><button type="button" x-ref="detailClose" aria-label="Close record details" @click="closeNode()" class="p-2 hover:bg-base rounded-lg text-muted hover:text-base transition-colors"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
                 <div class="flex border-b border-base"><button @click="detailTab = 'payload'" :class="detailTab === 'payload' ? 'border-yellow-500 text-yellow-400' : 'text-muted hover:text-base'" class="px-4 py-2 border-b-2 font-medium text-sm -mb-px transition-colors">Payload</button><button @click="detailTab = 'provenance'" :class="detailTab === 'provenance' ? 'border-yellow-500 text-yellow-400' : 'text-muted hover:text-base'" class="px-4 py-2 border-b-2 font-medium text-sm -mb-px transition-colors">Provenance</button><button @click="detailTab = 'falsifiers'" :class="detailTab === 'falsifiers' ? 'border-yellow-500 text-yellow-400' : 'text-muted hover:text-base'" class="px-4 py-2 border-b-2 font-medium text-sm -mb-px transition-colors">Falsifiers</button><button @click="detailTab = 'diffs'" :class="detailTab === 'diffs' ? 'border-yellow-500 text-yellow-400' : 'text-muted hover:text-base'" class="px-4 py-2 border-b-2 font-medium text-sm -mb-px transition-colors">Diffs</button></div>
                 <div class="flex-1 overflow-auto p-4 scrollbar-thin">
                     <div x-show="detailTab === 'payload'">
@@ -99,7 +99,125 @@
     </main>
 
     <script>
-        function app() { return { tabs: [{ id: 'observed', label: 'Observed' }, { id: 'inferred', label: 'Inferred' }, { id: 'generated', label: 'Generated' }], activeTab: 'observed', nodes: [], loading: false, listError: '', totalCount: 0, page: 1, pageSize: 20, selectedNode: null, detailTab: 'payload', selectedChildren: [], selectedFalsifiers: [], selectedDiffs: [], detailLoading: false, detailError: '', filter: { domain: '', author: '', label: '' }, domains: [], async init() { await this.fetchDomains(); await this.fetchNodes(); window.addEventListener('tab-change', (e) => { this.activeTab = e.detail; this.page = 1; this.fetchNodes(); }); }, async fetchDomains() { try { const res = await fetch('/api/domains'); const data = await res.json(); this.domains = data.domains || data; } catch (e) { console.error(e); } }, async fetchNodes() { this.loading = true; this.listError = ''; const params = new URLSearchParams({ type: this.activeTab, limit: this.pageSize, offset: (this.page - 1) * this.pageSize }); if (this.filter.domain) params.append('domain', this.filter.domain); if (this.filter.author) params.append('author', this.filter.author); if (this.filter.label) params.append('label', this.filter.label); try { const res = await fetch(`/api/nodes?${params}`); if (!res.ok) throw new Error('Record request failed'); const data = await res.json(); this.nodes = data.nodes; this.totalCount = data.total_count; } catch (e) { console.error(e); this.nodes = []; this.totalCount = 0; this.listError = 'Records could not be loaded. Check that your local Witness server is running, then choose Refresh.'; } finally { this.loading = false; } }, getCardClass(type) { return type === 'Generated' ? 'bg-zinc-950/60 border-dashed border-purple-500/30' : 'bg-elevated border-base'; }, getBadgeClass(type) { return type === 'Observed' ? 'badge-observed' : type === 'Inferred' ? 'badge-inferred' : 'badge-generated'; }, getFalsifierStatusClass(status) { const classes = { 'Pending': 'badge-generated', 'InProgress': 'badge-inferred', 'CompletedFalsified': 'badge-observed', 'CompletedConfirmed': 'badge-observed' }; return classes[status] || 'badge-generated'; }, formatDate(iso) { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }, formatAuthor(author) { if (typeof author === 'string') return author; if (!author) return ''; return author.name || author.id || author.author_type || 'unknown'; }, truncate(str, len) { return str.length > len ? str.slice(0, len) + '...' : str; }, formatJson(obj) { return JSON.stringify(obj, null, 2); }, formatPayload(obj) { if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return this.formatJson(obj); const { node, ...fields } = obj; return this.formatJson(fields); }, async openNode(node) { this.selectedNode = node; this.detailTab = 'payload'; this.selectedChildren = []; this.selectedFalsifiers = []; this.selectedDiffs = []; this.detailError = ''; this.detailLoading = true; document.body.style.overflow = 'hidden'; const endpoints = ['children', 'falsifiers', 'diffs']; try { const responses = await Promise.all(endpoints.map(endpoint => fetch(`/api/nodes/${node.id}/${endpoint}`))); if (responses.some(response => !response.ok)) throw new Error('Related record request failed'); const [children, falsifiers, diffs] = await Promise.all(responses.map(response => response.json())); this.selectedChildren = children.children || []; this.selectedFalsifiers = falsifiers.falsifiers || []; this.selectedDiffs = diffs.diffs || []; } catch (error) { console.error(error); this.detailError = 'Related records could not be loaded. The payload remains available.'; } finally { this.detailLoading = false; } }, closeNode() { this.selectedNode = null; this.detailTab = 'payload'; this.selectedChildren = []; this.selectedFalsifiers = []; this.selectedDiffs = []; this.detailError = ''; document.body.style.overflow = ''; }, getChildrenCount(nodeId) { return '?'; } } }
+        function app() {
+            return {
+                tabs: [{ id: 'observed', label: 'Observed' }, { id: 'inferred', label: 'Inferred' }, { id: 'generated', label: 'Generated' }],
+                activeTab: 'observed', nodes: [], loading: false, listError: '', listSequence: 0,
+                totalCount: 0, page: 1, pageSize: 20, domains: [], domainSequence: 0,
+                selectedNode: null, detailTab: 'payload', selectedChildren: [], selectedFalsifiers: [], selectedDiffs: [],
+                detailLoading: false, detailError: '', detailSequence: 0, returnFocus: null,
+                filter: { domain: '', author: '', label: '' },
+                async init() { await this.refresh(); },
+                async refresh() { await Promise.all([this.fetchDomains(), this.fetchNodes()]); },
+                setTab(id) {
+                    this.activeTab = id;
+                    this.page = 1;
+                    this.closeNode();
+                    return this.fetchNodes();
+                },
+                async fetchDomains() {
+                    const sequence = ++this.domainSequence;
+                    try {
+                        const response = await fetch('/api/domains');
+                        if (!response.ok) throw new Error('Domain request failed');
+                        const data = await response.json();
+                        if (sequence === this.domainSequence) this.domains = data.domains || data;
+                    } catch (error) { console.error(error); }
+                },
+                async fetchNodes() {
+                    const sequence = ++this.listSequence;
+                    this.loading = true;
+                    this.listError = '';
+                    const params = new URLSearchParams({ type: this.activeTab, limit: this.pageSize, offset: (this.page - 1) * this.pageSize });
+                    if (this.filter.domain) params.append('domain', this.filter.domain);
+                    if (this.filter.author) params.append('author', this.filter.author);
+                    if (this.filter.label) params.append('label', this.filter.label);
+                    try {
+                        const response = await fetch(`/api/nodes?${params}`);
+                        if (!response.ok) throw new Error('Record request failed');
+                        const data = await response.json();
+                        if (sequence !== this.listSequence) return;
+                        this.nodes = data.nodes;
+                        this.totalCount = data.total_count;
+                    } catch (error) {
+                        if (sequence !== this.listSequence) return;
+                        console.error(error);
+                        this.nodes = [];
+                        this.totalCount = 0;
+                        this.listError = 'Records could not be loaded. Check that your local Witness server is running, then choose Refresh.';
+                    } finally {
+                        if (sequence === this.listSequence) this.loading = false;
+                    }
+                },
+                getCardClass(type) { return type === 'Generated' ? 'bg-zinc-950/60 border-dashed border-purple-500/30' : 'bg-elevated border-base'; },
+                getBadgeClass(type) { return type === 'Observed' ? 'badge-observed' : type === 'Inferred' ? 'badge-inferred' : 'badge-generated'; },
+                getFalsifierStatusClass(status) {
+                    const classes = { pending: 'badge-generated', 'in-progress': 'badge-inferred', 'completed-falsified': 'badge-observed', 'completed-confirmed': 'badge-observed' };
+                    return classes[status] || 'badge-generated';
+                },
+                formatDate(iso) { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); },
+                formatAuthor(author) { if (typeof author === 'string') return author; return author?.name || author?.id || author?.author_type || 'unknown'; },
+                truncate(str, length) { return str.length > length ? str.slice(0, length) + '...' : str; },
+                formatJson(obj) { return JSON.stringify(obj, null, 2); },
+                formatPayload(obj) {
+                    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return this.formatJson(obj);
+                    const { node, ...fields } = obj;
+                    return this.formatJson(fields);
+                },
+                async openNode(node) {
+                    const sequence = ++this.detailSequence;
+                    if (!this.selectedNode) this.returnFocus = document.activeElement;
+                    this.selectedNode = node;
+                    this.detailTab = 'payload';
+                    this.selectedChildren = [];
+                    this.selectedFalsifiers = [];
+                    this.selectedDiffs = [];
+                    this.detailError = '';
+                    this.detailLoading = true;
+                    document.body.style.overflow = 'hidden';
+                    this.$nextTick(() => {
+                        if (sequence === this.detailSequence) this.$refs.detailClose?.focus();
+                    });
+                    try {
+                        const responses = await Promise.all(['children', 'falsifiers', 'diffs'].map(endpoint => fetch(`/api/nodes/${node.id}/${endpoint}`)));
+                        if (responses.some(response => !response.ok)) throw new Error('Related record request failed');
+                        const [children, falsifiers, diffs] = await Promise.all(responses.map(response => response.json()));
+                        if (sequence !== this.detailSequence) return;
+                        this.selectedChildren = children.children || [];
+                        this.selectedFalsifiers = falsifiers.falsifiers || [];
+                        this.selectedDiffs = diffs.diffs || [];
+                    } catch (error) {
+                        if (sequence !== this.detailSequence) return;
+                        console.error(error);
+                        this.detailError = 'Related records could not be loaded. The payload remains available.';
+                    } finally {
+                        if (sequence === this.detailSequence) this.detailLoading = false;
+                    }
+                },
+                closeNode() {
+                    ++this.detailSequence;
+                    this.selectedNode = null;
+                    this.detailTab = 'payload';
+                    this.selectedChildren = [];
+                    this.selectedFalsifiers = [];
+                    this.selectedDiffs = [];
+                    this.detailError = '';
+                    this.detailLoading = false;
+                    document.body.style.overflow = '';
+                    const target = this.returnFocus;
+                    this.returnFocus = null;
+                    if (target?.isConnected) this.$nextTick(() => target.focus());
+                },
+                trapDetailFocus(event) {
+                    const dialog = event.currentTarget;
+                    const controls = [...dialog.querySelectorAll('button, input, select, textarea, a[href], summary, [tabindex="0"]')].filter(element => element.getClientRects().length && !element.disabled);
+                    if (!controls.length) return;
+                    const first = controls[0], last = controls[controls.length - 1];
+                    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                }
+            };
+        }
     </script>
 </body>
 </html>

@@ -1,7 +1,9 @@
 use crate::Result;
 use crate::types::*;
 use chrono::{DateTime, Utc};
+use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Row, SqlitePool};
+use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -11,11 +13,17 @@ pub struct Storage {
 
 impl Storage {
     pub async fn new(database_url: &str) -> Result<Self> {
-        // sqlx's sqlite connect does not create a missing file in all builds
-        // (SQLITE_CANTOPEN on fresh DBs). Ensure the file exists first so a
-        // fresh `Storage::new` works for both the server and the CLI.
-        ensure_sqlite_file(database_url)?;
-        let pool = SqlitePool::connect(database_url).await?;
+        // Let SQLx parse paths and URI parameters; stripping leading slashes
+        // changes absolute paths into unrelated files under the working directory.
+        let options = SqliteConnectOptions::from_str(database_url)?.create_if_missing(true);
+        let filename = options.clone().get_filename();
+        if let Some(parent) = filename
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(parent)?;
+        }
+        let pool = SqlitePool::connect_with(options).await?;
         sqlx::migrate!("./migrations").run(&pool).await?;
         Ok(Self {
             pool: Arc::new(pool),
@@ -98,43 +106,9 @@ impl Storage {
         );
         let mut args: Vec<String> = Vec::new();
 
-        if let Some(types) = &filter.epistemic_types {
-            let placeholders = types.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(&format!(" AND epistemic_type IN ({})", placeholders));
-            for t in types {
-                args.push(format!("{:?}", t).to_lowercase());
-            }
-        }
+        append_node_filters(&mut query, &mut args, filter);
 
-        if let Some(domains) = &filter.domains {
-            let _placeholders = domains.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(&format!(" AND domain IN ({})", _placeholders));
-            for d in domains {
-                args.push(d.clone());
-            }
-        }
-
-        if let Some(authors) = &filter.authors {
-            for a in authors {
-                query.push_str(" AND author LIKE '%' || ? || '%'");
-                args.push(a.clone());
-            }
-        }
-
-        if let Some(range) = &filter.date_range {
-            query.push_str(" AND timestamp BETWEEN ? AND ?");
-            args.push(range.from.to_rfc3339());
-            args.push(range.to.to_rfc3339());
-        }
-
-        if let Some(labels) = &filter.labels {
-            for l in labels {
-                query.push_str(" AND labels LIKE '%' || ? || '%'");
-                args.push(l.clone());
-            }
-        }
-
-        query.push_str(" ORDER BY timestamp DESC LIMIT ? OFFSET ?");
+        query.push_str(" ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?");
         args.push(limit.to_string());
         args.push(offset.to_string());
 
@@ -151,41 +125,7 @@ impl Storage {
         let mut query = String::from("SELECT COUNT(*) as count FROM nodes WHERE 1=1");
         let mut args: Vec<String> = Vec::new();
 
-        if let Some(types) = &filter.epistemic_types {
-            let placeholders = types.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(&format!(" AND epistemic_type IN ({})", placeholders));
-            for t in types {
-                args.push(format!("{:?}", t).to_lowercase());
-            }
-        }
-
-        if let Some(domains) = &filter.domains {
-            let placeholders = domains.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            query.push_str(&format!(" AND domain IN ({})", placeholders));
-            for d in domains {
-                args.push(d.clone());
-            }
-        }
-
-        if let Some(authors) = &filter.authors {
-            for a in authors {
-                query.push_str(" AND author LIKE '%' || ? || '%'");
-                args.push(a.clone());
-            }
-        }
-
-        if let Some(range) = &filter.date_range {
-            query.push_str(" AND timestamp BETWEEN ? AND ?");
-            args.push(range.from.to_rfc3339());
-            args.push(range.to.to_rfc3339());
-        }
-
-        if let Some(labels) = &filter.labels {
-            for l in labels {
-                query.push_str(" AND labels LIKE '%' || ? || '%'");
-                args.push(l.clone());
-            }
-        }
+        append_node_filters(&mut query, &mut args, filter);
 
         let mut q = sqlx::query(&query);
         for arg in args {
@@ -308,25 +248,62 @@ impl Storage {
     }
 }
 
-/// Create an empty sqlite database file if it does not already exist, creating
-/// any missing parent directories. sqlx's `SqlitePool::connect` can fail with
-/// SQLITE_CANTOPEN when the file is absent, so we touch it up front.
-fn ensure_sqlite_file(database_url: &str) -> Result<()> {
-    // Accept: sqlite://path, sqlite:///abs/path, sqlite://./path
-    let raw = database_url.replace("sqlite://", "");
-    let path = raw.trim_start_matches('/');
-    if path.is_empty() || path == ":memory:" {
-        return Ok(());
+fn append_node_filters(query: &mut String, args: &mut Vec<String>, filter: &QueryFilter) {
+    if let Some(types) = &filter.epistemic_types {
+        let placeholders = types.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        query.push_str(&format!(" AND epistemic_type IN ({})", placeholders));
+        for t in types {
+            args.push(format!("{:?}", t).to_lowercase());
+        }
     }
-    let path = std::path::Path::new(path);
-    if path.exists() {
-        return Ok(());
+
+    if let Some(domains) = &filter.domains {
+        let placeholders = domains.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        query.push_str(&format!(" AND domain IN ({})", placeholders));
+        for d in domains {
+            args.push(d.clone());
+        }
     }
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).ok();
+
+    if let Some(authors) = &filter.authors {
+        for a in authors {
+            query.push_str(" AND author LIKE '%' || ? || '%'");
+            args.push(a.clone());
+        }
     }
-    std::fs::File::create(path).map_err(crate::WitnessError::Io)?;
-    Ok(())
+
+    if let Some(range) = &filter.date_range {
+        query.push_str(" AND timestamp BETWEEN ? AND ?");
+        args.push(range.from.to_rfc3339());
+        args.push(range.to.to_rfc3339());
+    }
+
+    if let Some(labels) = &filter.labels {
+        for l in labels {
+            query.push_str(" AND labels LIKE '%' || ? || '%'");
+            args.push(l.clone());
+        }
+    }
+
+    if let Some(has_falsifiers) = filter.has_falsifiers {
+        query.push_str(if has_falsifiers {
+            " AND COALESCE(json_array_length(payload, '$.derivation.falsifiers'), 0) > 0"
+        } else {
+            " AND COALESCE(json_array_length(payload, '$.derivation.falsifiers'), 0) = 0"
+        });
+    }
+    if let Some(child) = filter.parent_of {
+        query.push_str(
+            " AND id IN (SELECT from_id FROM edges WHERE to_id = ? AND edge_type = 'supports')",
+        );
+        args.push(child.to_string());
+    }
+    if let Some(parent) = filter.child_of {
+        query.push_str(
+            " AND id IN (SELECT to_id FROM edges WHERE from_id = ? AND edge_type = 'supports')",
+        );
+        args.push(parent.to_string());
+    }
 }
 
 fn parse_uuid(value: &str, field: &str) -> Result<Uuid> {
@@ -453,5 +430,34 @@ mod tests {
 
         drop(storage);
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn fresh_absolute_database_uses_the_requested_path() {
+        let directory = std::env::temp_dir().join(format!("witness-absolute-{}", Uuid::new_v4()));
+        let path = directory.join("nested").join("fresh.db");
+        let storage = Storage::new(&format!("sqlite://{}?mode=rwc", path.display()))
+            .await
+            .unwrap();
+        assert!(path.is_file());
+        let relative_shadow =
+            std::path::PathBuf::from(path.to_string_lossy().trim_start_matches('/'));
+        assert!(!relative_shadow.exists());
+        assert_eq!(
+            storage.count_nodes(&QueryFilter::default()).await.unwrap(),
+            0
+        );
+        storage.pool.close().await;
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn memory_database_migrates_without_a_disk_file() {
+        let storage = Storage::new("sqlite::memory:").await.unwrap();
+        assert_eq!(
+            storage.count_nodes(&QueryFilter::default()).await.unwrap(),
+            0
+        );
+        storage.pool.close().await;
     }
 }
