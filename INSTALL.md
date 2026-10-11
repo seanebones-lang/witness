@@ -7,6 +7,9 @@ authorization.
 ## Fastest safe local start
 
 Prerequisite: current stable [Rust](https://rustup.rs/) with Cargo.
+The shell examples use Bash syntax (macOS/Linux terminals or Git Bash on
+Windows). Rust tests and the first-use demo are also checked in Windows CI;
+that does not establish a signed native installer or production deployment.
 
 ```bash
 git clone https://github.com/seanebones-lang/witness.git && cd witness && \
@@ -82,7 +85,7 @@ mixing it with another local run:
 
 ```bash
 DATABASE_URL="sqlite://$PWD/review.db" PORT=18080 \
-  cargo run --release --package witness-api
+  cargo run --release --locked --package witness-api
 ```
 
 Then check that it is alive:
