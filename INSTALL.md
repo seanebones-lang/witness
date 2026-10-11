@@ -16,6 +16,38 @@ touch witness.db && SQLX_OFFLINE=true cargo run --package witness-api
 Open <http://127.0.0.1:8080/>. The server migrates the local `witness.db` file.
 Stop it with `Control-C`.
 
+## Try a populated demonstration
+
+With Rust/Cargo and Python 3 installed, run this from the cloned repository:
+
+```bash
+python3 scripts/launch_demo.py
+```
+
+Open <http://127.0.0.1:4360/>. The launcher builds the locked Rust workspace,
+creates a separate temporary database and demo signing key, and exercises the
+real CLI and REST API. It creates two **synthetic** temperature readings, one
+inference with declared premises and a falsifier, and one hand-authored synthetic
+narrative classified as Generated. It also checks that an inference referencing
+a missing premise is rejected. No model API or external account is used.
+
+Choose Observed, Inferred, and Generated; open a card to inspect its payload,
+declared provenance, and falsifiers. Signature data is present on the two
+observations, but the dashboard does not verify signatures on read. These
+fixtures establish no real measurement, identity, scientific finding, or
+independent review.
+
+Stop with `Control-C`; the launcher removes its temporary database and key.
+Your existing `witness.db` is not used. Choose another port with `--port 4361` if
+4360 is occupied. Dashboard styling and interactivity currently require access
+to third-party CDNs; the CLI and API demonstration run locally.
+
+For an automated first-use check after building:
+
+```bash
+python3 scripts/launch_demo.py --skip-build --check-only --port 18081
+```
+
 ## Verify the repository before use
 
 ```bash
