@@ -34,6 +34,7 @@ impl IngestionService {
         source_uri: Option<String>,
         keypair: Option<&SigningKeypair>,
     ) -> Result<ProvenanceNode> {
+        validate_author(&author)?;
         validate_measurement(&measurement)?;
         let node = self.build_observation_node(measurement, author, labels, domain, source_uri)?;
         let keypair = keypair.or(self.default_keypair.as_ref());
@@ -51,14 +52,8 @@ impl IngestionService {
         source_uri: Option<String>,
         keypair: Option<&SigningKeypair>,
     ) -> Result<ProvenanceNode> {
-        if derivation
-            .inference_uncertainty
-            .is_some_and(|value| !value.is_finite())
-        {
-            return Err(crate::WitnessError::Validation(
-                "inference uncertainty must be finite".into(),
-            ));
-        }
+        validate_author(&author)?;
+        validate_derivation(&derivation)?;
         for premise in &derivation.premises {
             if self.storage.get_node(*premise).await?.is_none() {
                 return Err(crate::WitnessError::Validation(format!(
@@ -82,6 +77,8 @@ impl IngestionService {
         source_uri: Option<String>,
         keypair: Option<&SigningKeypair>,
     ) -> Result<ProvenanceNode> {
+        validate_author(&author)?;
+        validate_generation(&generation)?;
         let node = self.build_generation_node(generation, author, labels, domain, source_uri)?;
         let keypair = keypair.or(self.default_keypair.as_ref());
         let signed_node = self.sign_and_store(node, keypair).await?;
@@ -128,6 +125,59 @@ impl IngestionService {
     }
 
     async fn validate_import_relationships(&self, node: &ProvenanceNode) -> Result<()> {
+        validate_author(&node.author)?;
+        match node.epistemic_type {
+            EpistemicType::Observed => {
+                let measurement: Measurement =
+                    serde_json::from_value(node.payload["measurement"].clone()).map_err(|_| {
+                        crate::WitnessError::Validation(
+                            "observed import requires a measurement payload".into(),
+                        )
+                    })?;
+                validate_measurement(&measurement)?;
+                if node.payload.get("derivation").is_some() || node.payload.get("model").is_some() {
+                    return Err(crate::WitnessError::Validation(
+                        "observed import contains a different record type".into(),
+                    ));
+                }
+            }
+            EpistemicType::Inferred => {
+                let derivation: Derivation =
+                    serde_json::from_value(node.payload["derivation"].clone()).map_err(|_| {
+                        crate::WitnessError::Validation(
+                            "inferred import requires a derivation payload".into(),
+                        )
+                    })?;
+                validate_derivation(&derivation)?;
+                if derivation.premises != node.parents {
+                    return Err(crate::WitnessError::Validation(
+                        "inferred import parents must match its derivation premises".into(),
+                    ));
+                }
+                if node.payload.get("measurement").is_some() || node.payload.get("model").is_some()
+                {
+                    return Err(crate::WitnessError::Validation(
+                        "inferred import contains a different record type".into(),
+                    ));
+                }
+            }
+            EpistemicType::Generated => {
+                let generation: Generation =
+                    serde_json::from_value(node.payload.clone()).map_err(|_| {
+                        crate::WitnessError::Validation(
+                            "generated import requires a generation payload".into(),
+                        )
+                    })?;
+                validate_generation(&generation)?;
+                if node.payload.get("measurement").is_some()
+                    || node.payload.get("derivation").is_some()
+                {
+                    return Err(crate::WitnessError::Validation(
+                        "generated import contains a different record type".into(),
+                    ));
+                }
+            }
+        }
         if node.epistemic_type == EpistemicType::Observed && !node.parents.is_empty() {
             return Err(crate::WitnessError::Validation(format!(
                 "observed import cannot declare parent records in the current schema: {}",
@@ -460,6 +510,64 @@ fn validate_measurement(measurement: &Measurement) -> Result<()> {
     Ok(())
 }
 
+fn validate_author(author: &Author) -> Result<()> {
+    if author.id.trim().is_empty() {
+        return Err(crate::WitnessError::Validation(
+            "author ID must not be blank".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_derivation(derivation: &Derivation) -> Result<()> {
+    if derivation.claim.statement.trim().is_empty() || derivation.methodology.trim().is_empty() {
+        return Err(crate::WitnessError::Validation(
+            "an inference requires a claim and methodology".into(),
+        ));
+    }
+    if derivation
+        .inference_uncertainty
+        .is_some_and(|value| !value.is_finite())
+    {
+        return Err(crate::WitnessError::Validation(
+            "inference uncertainty must be finite".into(),
+        ));
+    }
+    let unique: std::collections::HashSet<_> = derivation.premises.iter().collect();
+    if unique.len() != derivation.premises.len() {
+        return Err(crate::WitnessError::Validation(
+            "inference premises must not repeat a record ID".into(),
+        ));
+    }
+    for falsifier in &derivation.falsifiers {
+        if falsifier.description.trim().is_empty() || falsifier.measurement_type.trim().is_empty() {
+            return Err(crate::WitnessError::Validation(
+                "a falsifier requires a description and measurement type".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_generation(generation: &Generation) -> Result<()> {
+    if generation.model.id.trim().is_empty()
+        || generation.model.version.trim().is_empty()
+        || generation
+            .node
+            .payload
+            .get("content")
+            .and_then(serde_json::Value::as_str)
+            .is_none_or(|content| content.trim().is_empty())
+        || generation.node.epistemic_type != EpistemicType::Generated
+    {
+        return Err(crate::WitnessError::Validation(
+            "a generation requires content, a model ID and version, and a Generated embedded node"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
 impl Default for ProvenanceNode {
     fn default() -> Self {
         Self {
@@ -647,6 +755,101 @@ mod tests {
         );
         drop(service);
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn signed_metadata_survives_storage_and_jsonl_import() {
+        let (service, path) = test_service().await;
+        let mut author = author();
+        for index in 0..20 {
+            author
+                .metadata
+                .insert(format!("field-{index}"), serde_json::json!(index));
+        }
+        let keypair = SigningKeypair::generate();
+        let node = service
+            .ingest_observation(measurement(), author, vec![], None, None, Some(&keypair))
+            .await
+            .unwrap();
+        let stored = service.storage.get_node(node.id).await.unwrap().unwrap();
+        assert!(verify_node(&stored).unwrap());
+        let jsonl = std::env::temp_dir().join(format!("witness-import-{}.jsonl", Uuid::new_v4()));
+        std::fs::write(&jsonl, serde_json::to_string(&stored).unwrap()).unwrap();
+        let (destination, database) = test_service().await;
+        let imported = destination
+            .ingest_jsonl(jsonl.to_str().unwrap(), None)
+            .await
+            .unwrap();
+        assert_eq!(imported[0].id, node.id);
+        assert!(
+            verify_node(
+                &destination
+                    .storage
+                    .get_node(node.id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+            )
+            .unwrap()
+        );
+        drop(service);
+        drop(destination);
+        for file in [path, database, jsonl] {
+            std::fs::remove_file(file).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn jsonl_rejects_type_and_premise_mismatches_without_writes() {
+        let (service, path) = test_service().await;
+        let original = service
+            .ingest_observation(measurement(), author(), vec![], None, None, None)
+            .await
+            .unwrap();
+        let mut invalid_type = original.clone();
+        invalid_type.id = Uuid::new_v4();
+        invalid_type.payload = serde_json::json!({"content": "generated prose"});
+        let mut invalid_author = original.clone();
+        invalid_author.id = Uuid::new_v4();
+        invalid_author.author.id.clear();
+        let derivation = Derivation {
+            premises: vec![original.id],
+            methodology: "fixture method".into(),
+            model_ref: None,
+            parameters: HashMap::new(),
+            claim: Claim {
+                statement: "fixture claim".into(),
+                claim_type: ClaimType::Descriptive,
+                scope: ClaimScope::Specific,
+            },
+            falsifiers: vec![],
+            inference_uncertainty: None,
+        };
+        let mut mismatched_premises = service
+            .build_inference_node(derivation, author(), vec![], None, None)
+            .unwrap();
+        mismatched_premises.parents.clear();
+        let jsonl =
+            std::env::temp_dir().join(format!("witness-invalid-import-{}.jsonl", Uuid::new_v4()));
+        for mut invalid in [invalid_type, invalid_author, mismatched_premises] {
+            invalid.cid = compute_cid(&invalid.payload).unwrap();
+            std::fs::write(&jsonl, serde_json::to_string(&invalid).unwrap()).unwrap();
+            assert!(matches!(
+                service.ingest_jsonl(jsonl.to_str().unwrap(), None).await,
+                Err(crate::WitnessError::Validation(_))
+            ));
+        }
+        assert_eq!(
+            service
+                .storage
+                .count_nodes(&QueryFilter::default())
+                .await
+                .unwrap(),
+            1
+        );
+        drop(service);
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_file(jsonl).unwrap();
     }
 
     #[tokio::test]

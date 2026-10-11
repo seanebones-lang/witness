@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EXP-001 | Witness — Proof A: Infrastructure & Reproducibility</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/witness.css">
+    <script defer src="/assets/alpine.js"></script>
     <style>
         :root { 
             --bg: #0a0a0b; --bg-elevated: #121214; --border: #27272a; 
@@ -16,8 +13,8 @@
             --observed: #22c55e; --inferred: #3b82f6; --generated: #a855f7; 
             --failed: #ef4444;
         }
-        * { font-family: 'Inter', sans-serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
         .bg-base { background-color: var(--bg); }
         .bg-elevated { background-color: var(--bg-elevated); }
         .border-base { border-color: var(--border); }
@@ -75,7 +72,7 @@
                 <div class="flex-1">
                     <h3 class="font-semibold text-yellow-300 mb-2">Boundary Statement — What This Experiment Does NOT Prove</h3>
                     <p class="text-sm text-yellow-100 leading-relaxed">
-                        <strong>This experiment does not demonstrate a new drug candidate, biological efficacy, or a cancer treatment.</strong> It demonstrates that Humanity Grid can execute a computational experiment redundantly, detect disagreement, derive a bounded inference, and preserve the complete evidence trail in Witness.
+                        <strong>This experiment does not demonstrate a new drug candidate, biological efficacy, or a cancer treatment.</strong> It demonstrates that Humanity Grid can execute a computational experiment redundantly, detect disagreement, derive a bounded inference, and preserve a bounded local evidence record in Witness. It does not establish an operating volunteer network or independently witnessed execution.
                     </p>
                     <p class="text-xs text-yellow-500 mt-2 font-mono">Target: CDK2 • PDB: 1KE7 • Binding-site center: [-9.11, 48.31, 11.80] (LS3 co-crystallized ligand pocket)</p>
                 </div>
@@ -95,7 +92,7 @@
                                 <span class="badge badge-generated text-xs">human_reviewed: false</span>
                                 <span class="badge badge-generated text-xs">model: phi-3-mini-4k-instruct</span>
                             </div>
-                            <p class="text-sm text-muted">"Six known CDK2 inhibitors from ChEMBL will show reproducible docking scores when computed independently with AutoDock Vina using the LS3 pocket coordinates from PDB 1KE7."</p>
+                            <p class="text-sm text-muted">"Six known CDK2 inhibitors from ChEMBL will show agreement across the two specified local runs with AutoDock Vina using the LS3 pocket coordinates from PDB 1KE7."</p>
                             <div class="mt-2 flex flex-wrap gap-1 text-xs">
                                 <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">EXP-001</span>
                                 <span class="px-2 py-0.5 bg-base border border-base rounded font-mono text-muted">hypothesis</span>
@@ -156,7 +153,7 @@
                                 <h3 class="font-semibold text-observed">Replicate 1 — Seed 101</h3>
                                 <span class="badge badge-observed text-xs">instrument: autodock-vina-1.2.5</span>
                             </div>
-                            <p class="text-sm text-muted mb-2">Raw docking affinity measurements (kcal/mol) from independent computation.</p>
+                            <p class="text-sm text-muted mb-2">Raw docking affinity measurements (kcal/mol) from separate local computation.</p>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm font-mono">
                                     <thead>
@@ -197,7 +194,7 @@
                                 <h3 class="font-semibold text-observed">Replicate 2 — Seed 202</h3>
                                 <span class="badge badge-observed text-xs">instrument: autodock-vina-1.2.5</span>
                             </div>
-                            <p class="text-sm text-muted mb-2">Independent raw docking affinity measurements (kcal/mol) from second computation.</p>
+                            <p class="text-sm text-muted mb-2">Second-run raw docking affinity measurements (kcal/mol) from second computation.</p>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm font-mono">
                                     <thead>
@@ -291,10 +288,10 @@
                         <div class="flex-1">
                             <h3 class="font-semibold text-inferred mb-2">Consensus Inference</h3>
                             <div class="prose prose-sm prose-invert max-w-none text-sm">
-                                <p><strong>Claim:</strong> The two independent Vina replicates (seeds 101, 202) produce correlated docking scores (r = 0.885) exceeding the consensus threshold (r ≥ 0.80), indicating reproducible binding affinity predictions for six known CDK2 inhibitors.</p>
-                                <p><strong>Premises:</strong> 12 observed docking measurements (6 compounds × 2 replicates), each from independent AutoDock Vina runs with different random seeds but identical binding-site parameters.</p>
+                                <p><strong>Claim:</strong> The two local Vina replicates (seeds 101, 202) produce correlated docking scores (r = 0.885) exceeding the consensus threshold (r ≥ 0.80), showing bounded score agreement for this six-compound example, without establishing biological binding affinity.</p>
+                                <p><strong>Premises:</strong> 12 observed docking measurements (6 compounds × 2 replicates), each from separate AutoDock Vina runs with different random seeds but identical binding-site parameters.</p>
                                 <p><strong>Methodology:</strong> Pearson correlation between replicate score vectors. Outlier detection via IQR on per-compound absolute differences.</p>
-                                <p><strong>Uncertainty:</strong> ±0.115 (bootstrap 95% CI on correlation coefficient)</p>
+                                <p><strong>Uncertainty:</strong> 0.115 (= 1 − rounded r); a heuristic field, not a confidence interval</p>
                             </div>
                             <div class="mt-3 pt-3 border-t border-base">
                                 <h4 class="font-medium text-sm mb-2">Falsifiers (What Would Change This Conclusion)</h4>
@@ -353,8 +350,25 @@
                 </svg>
                 Witness Records (Click to Inspect Full Provenance)
             </h2>
+            <p class="text-sm text-muted mb-3">The story above describes the frozen reference experiment. The records below come from your current local database.</p>
+            <p role="status" x-show="recordsLoading">Loading local records…</p>
+            <p role="alert" class="text-red-400" x-show="recordsError" x-text="recordsError"></p>
+            <p x-show="!recordsLoading && !recordsError && !witnessRecords.length">No EXP-001 records in this database. Replay the frozen example first.</p>
             <div class="space-y-3" id="witnessRecords">
-                <div class="loading text-center py-8 text-muted">Loading Witness records…</div>
+                <template x-for="type in ['Observed', 'Inferred', 'Generated']" :key="type">
+                    <div class="bg-elevated border border-base rounded-xl p-4">
+                        <h3 class="font-mono mb-3" x-text="type + ' (' + witnessRecords.filter(n => n.epistemic_type === type).length + ')'"></h3>
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            <template x-for="n in witnessRecords.filter(n => n.epistemic_type === type)" :key="n.id">
+                                <a :href="'/?node=' + encodeURIComponent(n.id)" class="block p-3 bg-base border border-base rounded-lg">
+                                    <div class="font-mono text-xs truncate" x-text="n.id"></div>
+                                    <div class="text-sm" x-text="summarizePayload(n.payload, n.epistemic_type)"></div>
+                                    <div class="text-xs text-muted mt-2" x-text="(n.labels || []).join(' · ')"></div>
+                                </a>
+                            </template>
+                        </div>
+                    </div>
+                </template>
             </div>
         </section>
 
@@ -383,19 +397,19 @@
             <div class="mt-4 p-4 bg-base border border-base rounded-lg">
                 <h4 class="font-medium mb-2">Answers Summary</h4>
                 <ul class="space-y-1 text-sm text-muted">
-                    <li>1. Can AutoDock Vina reproducibly predict binding affinities for known CDK2 inhibitors using the correct LS3 pocket?</li>
+                    <li>1. Do the two specified Vina runs agree on scores for the six supplied compounds?</li>
                     <li>2. Research Scout (phi-3-mini-4k-instruct) — <strong>generated, human_reviewed: false</strong></li>
-                    <li>3. Two independent AutoDock Vina 1.2.5 runs (seeds 101, 202; exhaustiveness=8, CPU=4) on PDB 1KE7 LS3 pocket center [-9.11, 48.31, 11.80], 24Å box, 6 ChEMBL actives</li>
+                    <li>3. Two local AutoDock Vina 1.2.5 runs (seeds 101, 202; exhaustiveness=8, CPU=4) on PDB 1KE7 LS3 pocket center [-9.11, 48.31, 11.80], 24Å box, 6 ChEMBL actives</li>
                     <li>4. 12 docking affinity measurements (kcal/mol) — see Observed tables above</li>
-                    <li>5. Yes — two independent computations with different random seeds</li>
+                    <li>5. Two local runs with different seeds; independent operators or laboratories were not established</li>
                     <li>6. Pearson r = 0.885 (threshold ≥ 0.80) → <strong>Consensus: PASS</strong></li>
                     <li>7. Yes — CHEMBL495686 flagged as IQR outlier (|Δ| = 0.570 kcal/mol)</li>
-                    <li>8. Replicates are correlated above threshold; docking predictions for these 6 compounds are reproducible</li>
+                    <li>8. The specified score vectors correlate above the chosen threshold; predictive validity is untested</li>
                     <li>9. 12 observed measurements, Pearson r=0.885, IQR outlier analysis, failed attempt provenance</li>
                     <li>10. Three falsifiers defined (see Inferred section) — one already completed (incorrect center)</li>
                     <li>11. The hypothesis (Research Scout, phi-3-mini) — marked <span class="badge badge-generated text-xs">GENERATED</span> <span class="badge badge-generated text-xs">human_reviewed:false</span></li>
                     <li>12. Yes — every record links to Witness nodes with CIDs, parents, timestamps, authors</li>
-                    <li>13. No — Witness is append-only; corrections create new nodes with parent links (diffs tracked)</li>
+                    <li>13. Content hashes can detect changes when checked against a trusted reference. Local database administrators can modify files; signatures are optional, and append-only storage enforcement is not implemented.</li>
                     <li>14. Humanity Grid can execute redundant computation, detect disagreement, derive bounded inference, preserve evidence trail</li>
                     <li>15. Does NOT prove: new drug candidate, biological efficacy, cancer treatment, or that docking scores predict actual binding</li>
                 </ul>
@@ -444,34 +458,7 @@
         <!-- Reproduction Instructions -->
         <section class="mb-8 bg-elevated border border-base rounded-xl p-6" aria-label="Reproduction Instructions">
             <h2 class="font-mono text-lg font-semibold mb-4">Reproduce Locally</h2>
-            <div class="space-y-4 text-sm">
-                <div>
-                    <h4 class="font-medium mb-2">Prerequisites</h4>
-                    <pre class="bg-base border border-base rounded-lg p-3 font-mono text-xs overflow-auto"><code># Humanity Grid
-cd ~/Desktop/humanity-grid
-# Requires: AutoDock Vina 1.2.5, Python 3.10+, openbabel, rdkit
-
-# Witness
-cd ~/Witness
-cargo build --release --bin witness-ingestion
-cargo run --release --bin witness-api
-# Dashboard at http://127.0.0.1:8080/experiments/EXP-001</code></pre>
-                </div>
-                <div>
-                    <h4 class="font-medium mb-2">Run EXP-001</h4>
-                    <pre class="bg-base border border-base rounded-lg p-3 font-mono text-xs overflow-auto"><code># From humanity-grid root
-python validation/run_vina_replicate.py --pdb 1KE7 --center -9.11,48.31,11.80 --seed 101 --output validation/output/results/rep1
-python validation/run_vina_replicate.py --pdb 1KE7 --center -9.11,48.31,11.80 --seed 202 --output validation/output/results/rep2
-python validation/consensus.py --rep1 validation/output/results/rep1 --rep2 validation/output/results/rep2</code></pre>
-                </div>
-                <div>
-                    <h4 class="font-medium mb-2">Ingest into Witness</h4>
-                    <pre class="bg-base border border-base rounded-lg p-3 font-mono text-xs overflow-auto"><code># Using the ingestion CLI (requires valid CIDs matching payload)
-witness-ingestion jsonl --file exp001_observed.jsonl
-witness-ingestion infer --file exp001_inferred.json
-witness-ingestion generate --file exp001_generated.json</code></pre>
-                </div>
-            </div>
+            <p class="text-sm text-muted">Follow the versioned <a class="underline" href="https://github.com/seanebones-lang/Humanity-Grid/blob/main/proofs/EXP-001-v1/README.md">frozen Proof A reviewer guide</a> to verify artifact hashes, reanalyse existing scores, and replay the records into a fresh loopback Witness database. Replay is not a new docking run. Fresh docking requires the separately documented scientific toolchain and inputs.</p>
         </section>
     </main>
 
@@ -483,80 +470,33 @@ witness-ingestion generate --file exp001_generated.json</code></pre>
     <script>
         function app() {
             return {
-                witnessRecords: [],
-                async init() {
-                    await this.loadWitnessRecords();
-                },
+                witnessRecords: [], recordsLoading: true, recordsError: '',
+                async init() { await this.loadWitnessRecords(); },
                 async loadWitnessRecords() {
+                    this.recordsLoading = true; this.recordsError = ''; this.witnessRecords = [];
                     try {
-                        // Query Witness for EXP-001 labeled nodes
-                        const res = await fetch('/api/nodes?label=EXP-001&limit=50');
-                        const data = await res.json();
-                        this.witnessRecords = data.nodes || [];
-                        this.renderRecords();
-                    } catch (e) {
-                        console.error(e);
-                        document.getElementById('witnessRecords').innerHTML = '<p class="text-red-400 text-center py-8">Failed to load Witness records</p>';
-                    }
-                },
-                renderRecords() {
-                    const container = document.getElementById('witnessRecords');
-                    if (this.witnessRecords.length === 0) {
-                        container.innerHTML = '<p class="text-muted text-center py-8">No EXP-001 records found in Witness yet. Ingest data first.</p>';
-                        return;
-                    }
-
-                    // Group by epistemic type
-                    const groups = {
-                        'Observed': this.witnessRecords.filter(n => n.epistemic_type === 'Observed'),
-                        'Inferred': this.witnessRecords.filter(n => n.epistemic_type === 'Inferred'),
-                        'Generated': this.witnessRecords.filter(n => n.epistemic_type === 'Generated'),
-                    };
-
-                    container.innerHTML = Object.entries(groups).map(([type, nodes]) => {
-                        if (nodes.length === 0) return '';
-                        const badgeClass = type === 'Observed' ? 'badge-observed' : type === 'Inferred' ? 'badge-inferred' : 'badge-generated';
-                        const cardClass = type === 'Observed' ? 'epistemic-observed' : type === 'Inferred' ? 'epistemic-inferred' : 'epistemic-generated';
-                        return `
-                            <div class="${cardClass} bg-elevated border border-base rounded-xl p-4">
-                                <div class="flex items-center justify-between mb-3">
-                                    <span class="badge px-2 py-0.5 rounded text-xs font-medium font-mono ${badgeClass}">${type}</span>
-                                    <span class="text-xs text-muted font-mono">${nodes.length} record(s)</span>
-                                </div>
-                                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                    ${nodes.map(n => `
-                                        <button onclick="openWitnessDetail('${n.id}')" class="text-left p-3 bg-base border border-base rounded-lg hover:border-yellow-500/50 transition-colors">
-                                            <div class="font-mono text-xs text-muted mb-1 truncate" title="${n.id}">${n.id}</div>
-                                            <div class="text-xs text-base line-clamp-2">${this.summarizePayload(n.payload, n.epistemic_type)}</div>
-                                            <div class="flex flex-wrap gap-1 mt-2">
-                                                ${(n.labels || []).slice(0, 3).map(l => `<span class="px-1.5 py-0.5 bg-elevated border border-base rounded text-xs text-muted font-mono">${l}</span>`).join('')}
-                                            </div>
-                                        </button>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
+                        const groups = await Promise.all(['observed', 'inferred', 'generated'].map(async type => {
+                            const res = await fetch('/api/nodes?label=EXP-001&type=' + type + '&limit=100');
+                            if (!res.ok) throw new Error('Local record request failed (' + res.status + ')');
+                            const data = await res.json();
+                            if (!Array.isArray(data.nodes) || data.total_count > data.nodes.length) throw new Error('More than 100 records in a category; use the main dashboard to inspect all records.');
+                            return data.nodes;
+                        }));
+                        this.witnessRecords = groups.flat();
+                    } catch (e) { this.recordsError = e.message || 'Failed to load local records'; }
+                    finally { this.recordsLoading = false; }
                 },
                 summarizePayload(payload, type) {
                     if (!payload) return 'No payload';
-                    if (type === 'Observed' && payload.observation?.measurement) {
-                        const m = payload.observation.measurement;
-                        return `${m.quantity}: ${m.value?.numeric ?? '?'} ${m.value?.unit ?? ''} @ ${m.location?.station_id ?? ''}`;
+                    if (type === 'Observed' && payload.measurement) {
+                        const m = payload.measurement;
+                        return `${m.quantity}: ${m.value?.numeric ?? m.value?.text ?? '?'} ${m.value?.unit ?? ''}`;
                     }
-                    if (type === 'Inferred' && payload.derivation?.claim) {
-                        return payload.derivation.claim.statement?.slice(0, 80) + '...';
-                    }
-                    if (type === 'Generated' && payload.model) {
-                        return `Model: ${payload.model.id} • Prompt: ${payload.prompt?.slice(0, 40)}...`;
-                    }
-                    return JSON.stringify(payload).slice(0, 80) + '...';
+                    if (type === 'Inferred') return payload.derivation?.claim?.statement || 'Inference';
+                    if (type === 'Generated') return 'Model: ' + (payload.model?.id || 'unspecified') + ' · human reviewed: ' + (payload.human_reviewed === true);
+                    return JSON.stringify(payload).slice(0, 120);
                 }
             }
-        }
-
-        function openWitnessDetail(nodeId) {
-            window.open(`/?node=${nodeId}`, '_blank');
         }
     </script>
 </body>

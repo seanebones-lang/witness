@@ -5,6 +5,7 @@ use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use rand::RngCore;
 use rand::rngs::OsRng;
 use serde::Serialize;
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 /// Keypair for signing provenance nodes
@@ -92,13 +93,22 @@ pub fn verify_node(node: &ProvenanceNode) -> Result<bool> {
 
 /// Create canonical byte representation of a node for signing (excludes signature field)
 fn canonicalize_node(node: &ProvenanceNode) -> Result<Vec<u8>> {
+    // Keep the established Author field order, but never sign HashMap iteration
+    // order: a deserialized map has a new random seed and may reorder its keys.
     #[derive(Serialize)]
-    struct CanonicalNode {
+    struct CanonicalAuthor<'a> {
+        id: &'a str,
+        name: &'a Option<String>,
+        author_type: AuthorType,
+        metadata: BTreeMap<&'a str, &'a serde_json::Value>,
+    }
+    #[derive(Serialize)]
+    struct CanonicalNode<'a> {
         id: Uuid,
         cid: CID,
         epistemic_type: EpistemicType,
         payload: serde_json::Value,
-        author: Author,
+        author: CanonicalAuthor<'a>,
         timestamp: DateTime<Utc>,
         parents: Vec<Uuid>,
         labels: Vec<String>,
@@ -111,7 +121,17 @@ fn canonicalize_node(node: &ProvenanceNode) -> Result<Vec<u8>> {
         cid: node.cid.clone(),
         epistemic_type: node.epistemic_type,
         payload: node.payload.clone(),
-        author: node.author.clone(),
+        author: CanonicalAuthor {
+            id: &node.author.id,
+            name: &node.author.name,
+            author_type: node.author.author_type,
+            metadata: node
+                .author
+                .metadata
+                .iter()
+                .map(|(key, value)| (key.as_str(), value))
+                .collect(),
+        },
         timestamp: node.timestamp,
         parents: node.parents.clone(),
         labels: node.labels.clone(),
@@ -182,5 +202,26 @@ mod tests {
 
         assert!(!verify_node(&node).unwrap());
         assert!(!verify_cid(&node.payload, &node.cid).unwrap());
+    }
+
+    #[test]
+    fn signature_survives_metadata_serialization_round_trips() {
+        let keypair = SigningKeypair::generate();
+        let mut node = node();
+        for index in 0..32 {
+            node.author.metadata.insert(
+                format!("field-{index:02}"),
+                serde_json::json!({"value": index}),
+            );
+        }
+        node.signature = Some(sign_node(&node, &keypair).unwrap());
+        let serialized = serde_json::to_string(&node).unwrap();
+        for _ in 0..20 {
+            let restored: ProvenanceNode = serde_json::from_str(&serialized).unwrap();
+            assert!(
+                verify_node(&restored).unwrap(),
+                "signature changed after deserializing author metadata"
+            );
+        }
     }
 }

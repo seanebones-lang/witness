@@ -1,0 +1,13 @@
+{
+  "name": "witness-dashboard-assets",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "node scripts/build-assets.cjs"
+  },
+  "devDependencies": {
+    "alpinejs": "3.17.4",
+    "tailwindcss": "4.3.0",
+    "@tailwindcss/cli": "4.3.0"
+  }
+}
