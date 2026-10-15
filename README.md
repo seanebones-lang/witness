@@ -4,6 +4,8 @@
 
 # Witness
 
+Contributing with an agent? Read [AGENTS.md](AGENTS.md) for setup, local checks and project boundaries.
+
 **A public skeptic that remembers.**
 
 > Humanity does not need another mind that talks. It needs a way to stay honest
