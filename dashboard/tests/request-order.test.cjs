@@ -18,6 +18,39 @@ function harness() {
   return { app, pending, resolve, context };
 }
 
+const relatedEmptyStates = [...html.matchAll(/<p\b[^>]*x-show="([^"]*selected(?:Children|Falsifiers|Diffs)\.length === 0[^"]*)"[^>]*>/g)].map(match => match[1]);
+function visibleRelatedEmptyStates(app) {
+  assert.equal(relatedEmptyStates.length, 3, 'exercise each rendered related-record empty state');
+  return relatedEmptyStates.filter(expression => runInNewContext(expression, app));
+}
+
+test('empty related-record messages require a successful completed request', async () => {
+  const { app, pending, resolve } = harness();
+  const loading = app.openNode({ id: 'record', payload: { measurement: 42 } });
+  assert.equal(visibleRelatedEmptyStates(app).length, 0);
+  for (const request of pending) resolve(request, { children: [], falsifiers: [], diffs: [] });
+  await loading;
+  assert.equal(app.detailError, '');
+  assert.equal(visibleRelatedEmptyStates(app).length, 3);
+});
+
+test('failed related-record lookups stay unknown rather than claiming no history', async () => {
+  for (const endpoint of ['children', 'falsifiers', 'diffs']) {
+    const { app, pending, resolve } = harness();
+    const node = { id: 'record', payload: { measurement: 42 } };
+    const loading = app.openNode(node);
+    for (const request of pending) {
+      if (request.url.endsWith('/' + endpoint)) request.resolve({ ok: false });
+      else resolve(request, { children: [], falsifiers: [], diffs: [] });
+    }
+    await loading;
+    assert.ok(app.detailError, endpoint);
+    assert.equal(app.detailLoading, false);
+    assert.equal(app.selectedNode, node, 'payload remains readable');
+    assert.equal(visibleRelatedEmptyStates(app).length, 0, endpoint);
+  }
+});
+
 test('falsifier badges recognize the serialized API statuses', () => {
   const { app } = harness();
   assert.equal(app.getFalsifierStatusClass('pending'), 'badge-generated');
