@@ -36,3 +36,7 @@ rand = "0.8"
 
 [workspace.lints.rust]
 edition2024 = "allow"
+
+# Keep SQLx 0.8 APIs while using patched bundled SQLite; see vendor/SQLX-PATCH.md.
+[patch.crates-io]
+sqlx-sqlite = { path = "vendor/sqlx-sqlite" }
