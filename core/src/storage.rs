@@ -369,6 +369,24 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn bundled_sqlite_has_the_database_wal_memory_exposure_fix() {
+        let storage = Storage::new("sqlite::memory:").await.unwrap();
+        let version: String = sqlx_core::query_scalar::query_scalar("SELECT sqlite_version()")
+            .fetch_one(&*storage.pool)
+            .await
+            .unwrap();
+        let components: Vec<u32> = version
+            .split('.')
+            .map(|part| part.parse().unwrap())
+            .collect();
+        assert!(
+            components.as_slice() >= [3, 54, 0].as_slice(),
+            "linked SQLite {version} lacks the CVE-2026-119375 fix"
+        );
+        storage.pool.close().await;
+    }
+
+    #[tokio::test]
     async fn embedded_migrations_match_files_and_preserve_checksums_on_reopen() {
         let embedded = sqlx_core::migrate::Migrator::new(EmbeddedMigrations)
             .await
