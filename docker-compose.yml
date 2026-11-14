@@ -1,0 +1,35 @@
+# Witness as an isolated local service. See docs/CONTAINERS.md.
+#
+# The boundary this recipe provides:
+#   - the API runs as an unprivileged user (UID 10001), never root
+#   - the container root filesystem is read-only; the only writable state
+#     is the dedicated /data volume holding the SQLite database
+#   - all Linux capabilities are dropped and privilege escalation is off
+#   - the port is published on the host's loopback interface only --
+#     do not change this to a bare "8080:8080" (that would expose an
+#     unauthenticated write API to the network; see INSTALL.md)
+services:
+  witness:
+    build: .
+    image: witness:local
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Bind address inside the container namespace; host exposure is
+      # governed by the loopback-only port publication below.
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      DATABASE_URL: "sqlite:///data/witness.db"
+    volumes:
+      - witness-data:/data
+    tmpfs:
+      - /tmp
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  witness-data:
