@@ -150,6 +150,8 @@ Humanity Grid Proof A replay path, see [INSTALL.md](INSTALL.md).
 
 ### Requirements
 
+Build with current stable Rust (the patched bundled SQLite binding requires Rust 1.88 or newer). The SQLx 0.8 compatibility patch and upstream provenance are documented in [vendor/SQLX-PATCH.md](vendor/SQLX-PATCH.md).
+
 - A current stable Rust toolchain with Cargo
 - SQLite 3 if you want to inspect the database directly
 
